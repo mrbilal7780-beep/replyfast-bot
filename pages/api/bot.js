@@ -27,13 +27,13 @@ export default async function handler(req, res) {
     console.log('📱 Message reçu de:', fromNumber);
     console.log('💬 Contenu:', incomingMessage);
 
-    // 4. Appeler OpenAI (CLÉS EN DUR POUR TEST)
+    // 4. Appeler OpenAI
     console.log('🤖 Appel OpenAI...');
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer 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'
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
@@ -63,15 +63,15 @@ export default async function handler(req, res) {
     
     console.log('✅ Réponse OpenAI:', botReply);
 
-    // 5. Envoyer via Twilio (CLÉS EN DUR POUR TEST)
+    // 5. Envoyer via Twilio
     console.log('📤 Envoi via Twilio...');
     const twilioClient = twilio(
-      'NY8RPEU7EBQ1RYLZJKEDFFX2',
-      '6229e211b11ea1fcfdf48c467ea11515'
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
     );
 
     await twilioClient.messages.create({
-      from: 'whatsapp:+14155238886',
+      from: process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886',
       to: fromNumber,
       body: botReply
     });
