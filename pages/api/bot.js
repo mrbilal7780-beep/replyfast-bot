@@ -9,23 +9,34 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  // 1. Vérifier méthode POST
+  // VÉRIFICATION WEBHOOK (GET request de Meta)
+  if (req.method === 'GET') {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode === 'subscribe' && token === 'replyfast_webhook_secret_2025') {
+      console.log('✅ Webhook vérifié!');
+      return res.status(200).send(challenge);
+    } else {
+      return res.status(403).send('Forbidden');
+    }
+  }
+
+  // TRAITEMENT DES MESSAGES (POST request)
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    // 2. Parser le body de Meta WhatsApp
     const rawBody = await getRawBody(req);
     const body = JSON.parse(rawBody.toString('utf8'));
 
-    // Vérification du webhook (Meta envoie ça pour vérifier)
     if (body.object && body.entry) {
       const entry = body.entry[0];
       const changes = entry.changes[0];
       const value = changes.value;
 
-      // Vérifier si c'est un message entrant
       if (value.messages && value.messages[0]) {
         const message = value.messages[0];
         const fromNumber = message.from;
@@ -34,7 +45,7 @@ export default async function handler(req, res) {
         console.log('📱 Message reçu de:', fromNumber);
         console.log('💬 Contenu:', incomingMessage);
 
-        // 3. Appeler OpenAI
+        // Appeler OpenAI
         console.log('🤖 Appel OpenAI...');
         const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -70,7 +81,7 @@ export default async function handler(req, res) {
         
         console.log('✅ Réponse OpenAI:', botReply);
 
-        // 4. Envoyer via Meta WhatsApp API
+        // Envoyer via Meta WhatsApp API
         console.log('📤 Envoi via Meta WhatsApp...');
         
         const metaResponse = await fetch(
