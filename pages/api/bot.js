@@ -52,16 +52,19 @@ export default async function handler(req, res) {
         console.log('📱 Message reçu de:', fromNumber);
         console.log('💬 Contenu:', incomingMessage);
 
+        // Déclarer conversation en dehors du try/catch
+        let conversation = null;
+
         // Sauvegarder le message dans Supabase
         try {
           // 1. Trouver ou créer la conversation
-          let { data: conversation, error: convError } = await supabase
+          let { data: existingConv, error: convError } = await supabase
             .from('conversations')
             .select('id')
             .eq('customer_phone', fromNumber)
             .single();
 
-          if (convError || !conversation) {
+          if (convError || !existingConv) {
             // Créer une nouvelle conversation
             const { data: newConv, error: createError } = await supabase
               .from('conversations')
@@ -79,7 +82,11 @@ export default async function handler(req, res) {
               console.error('❌ Erreur création conversation:', createError);
             } else {
               conversation = newConv;
+              console.log('✅ Nouvelle conversation créée:', conversation.id);
             }
+          } else {
+            conversation = existingConv;
+            console.log('✅ Conversation existante trouvée:', conversation.id);
           }
 
           // 2. Sauvegarder le message client
@@ -94,6 +101,7 @@ export default async function handler(req, res) {
                   message_type: 'text'
                 }
               ]);
+            console.log('✅ Message client sauvegardé');
           }
         } catch (dbError) {
           console.error('❌ Erreur DB:', dbError);
@@ -148,6 +156,7 @@ export default async function handler(req, res) {
                   message_type: 'text'
                 }
               ]);
+            console.log('✅ Réponse bot sauvegardée');
           }
         } catch (dbError) {
           console.error('❌ Erreur DB (réponse bot):', dbError);
@@ -178,7 +187,7 @@ export default async function handler(req, res) {
           throw new Error(`Meta error: ${metaResponse.status}`);
         }
 
-        console.log('✅ Message envoyé et sauvegardé!');
+        console.log('✅ Message envoyé via WhatsApp!');
       }
     }
 
