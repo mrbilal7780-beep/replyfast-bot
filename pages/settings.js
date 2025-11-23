@@ -36,12 +36,12 @@ export default function Settings() {
     if (session) {
       const { data } = await supabase
         .from('clients')
-        .select('whatsapp_number')
+        .select('whatsapp_phone_number_id')
         .eq('email', session.user.email)
         .single();
       
-      if (data?.whatsapp_number) {
-        setPhoneNumberId(data.whatsapp_number);
+      if (data?.whatsapp_phone_number_id) {
+        setPhoneNumberId(data.whatsapp_phone_number_id);
       }
     }
   };
@@ -49,14 +49,36 @@ export default function Settings() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase
+      // D'abord, vérifier si le client existe
+      const { data: existingClient } = await supabase
         .from('clients')
-        .update({ 
-          whatsapp_number: phoneNumberId
-        })
-        .eq('email', user.email);
+        .select('*')
+        .eq('email', user.email)
+        .single();
 
-      if (error) throw error;
+      if (existingClient) {
+        // Mettre à jour
+        const { error } = await supabase
+          .from('clients')
+          .update({ 
+            whatsapp_phone_number_id: phoneNumberId,
+            whatsapp_connected: true
+          })
+          .eq('email', user.email);
+        
+        if (error) throw error;
+      } else {
+        // Créer
+        const { error } = await supabase
+          .from('clients')
+          .insert([{ 
+            email: user.email,
+            whatsapp_phone_number_id: phoneNumberId,
+            whatsapp_connected: true
+          }]);
+        
+        if (error) throw error;
+      }
 
       setSuccess(true);
       setTimeout(() => {

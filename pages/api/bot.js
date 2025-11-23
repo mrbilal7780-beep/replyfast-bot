@@ -48,11 +48,30 @@ export default async function handler(req, res) {
         const message = value.messages[0];
         const fromNumber = message.from;
         const incomingMessage = message.text.body;
+        
+        // 🔥 NOUVEAU: Récupérer le Phone Number ID qui a reçu le message
+        const receivingPhoneNumberId = value.metadata?.phone_number_id;
 
         console.log('📱 Message reçu de:', fromNumber);
+        console.log('📞 Phone Number ID:', receivingPhoneNumberId);
         console.log('💬 Contenu:', incomingMessage);
 
-        // Déclarer conversation en dehors du try/catch
+        // 🔥 NOUVEAU: Trouver le client propriétaire de ce numéro
+        const { data: client, error: clientError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('whatsapp_phone_number_id', receivingPhoneNumberId)
+          .eq('whatsapp_connected', true)
+          .single();
+
+        if (clientError || !client) {
+          console.error('❌ Client non trouvé pour Phone Number ID:', receivingPhoneNumberId);
+          // Utiliser le système par défaut (pour les tests)
+          console.log('⚠️ Utilisation du mode par défaut');
+        }
+
+        console.log('✅ Message pour le client:', client?.email || 'Défaut');
+
         let conversation = null;
 
         // Sauvegarder le message dans Supabase
@@ -62,6 +81,7 @@ export default async function handler(req, res) {
             .from('conversations')
             .select('id')
             .eq('customer_phone', fromNumber)
+            .eq('client_email', client?.email || 'default@replyfast.com')
             .single();
 
           if (convError || !existingConv) {
@@ -70,9 +90,10 @@ export default async function handler(req, res) {
               .from('conversations')
               .insert([
                 {
-                  client_id: 1, // Pour l'instant, tout va au client ID 1
+                  client_email: client?.email || 'default@replyfast.com',
                   customer_phone: fromNumber,
-                  status: 'active'
+                  status: 'active',
+                  last_message_at: new Date().toISOString()
                 }
               ])
               .select()
@@ -86,6 +107,11 @@ export default async function handler(req, res) {
             }
           } else {
             conversation = existingConv;
+            // Mettre à jour last_message_at
+            await supabase
+              .from('conversations')
+              .update({ last_message_at: new Date().toISOString() })
+              .eq('id', conversation.id);
             console.log('✅ Conversation existante trouvée:', conversation.id);
           }
 
@@ -120,7 +146,7 @@ export default async function handler(req, res) {
             messages: [
               {
                 role: 'system',
-                content: 'Tu es un assistant automatique ReplyFast. Réponds en français, de manière professionnelle et concise.'
+                content: `Tu es un assistant automatique pour ${client?.email || 'un commerce'}. Réponds en français, de manière professionnelle et concise.`
               },
               {
                 role: 'user',
@@ -162,11 +188,13 @@ export default async function handler(req, res) {
           console.error('❌ Erreur DB (réponse bot):', dbError);
         }
 
-        // Envoyer via Meta WhatsApp API
+        // 🔥 NOUVEAU: Envoyer via le Phone Number ID du client (ou défaut)
+        const phoneNumberToUse = receivingPhoneNumberId || process.env.META_PHONE_NUMBER_ID;
+        
         console.log('📤 Envoi via Meta WhatsApp...');
         
         const metaResponse = await fetch(
-          `https://graph.facebook.com/v21.0/${process.env.META_PHONE_NUMBER_ID}/messages`,
+          `https://graph.facebook.com/v21.0/${phoneNumberToUse}/messages`,
           {
             method: 'POST',
             headers: {
