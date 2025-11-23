@@ -1,9 +1,38 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Zap, Shield, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/router';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function Home() {
   const router = useRouter();
+
+  useEffect(() => {
+    checkUser();
+  }, []);
+
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      // Vérifier si le profil est complété
+      const { data: client } = await supabase
+        .from('clients')
+        .select('profile_completed')
+        .eq('email', session.user.email)
+        .single();
+      
+      if (client?.profile_completed) {
+        router.push('/dashboard');
+      } else {
+        router.push('/onboarding');
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
@@ -95,7 +124,7 @@ export default function Home() {
             </button>
             
             <button
-              onClick={() => router.push('/demo')}
+              onClick={() => router.push('/login')}
               className="glass px-8 py-4 rounded-full text-white font-semibold text-lg hover:scale-105 transition-transform"
             >
               Voir la démo
