@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Wifi, WifiOff } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, WifiOff, Calendar, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
+  const [selectedSector, setSelectedSector] = useState('');
   const [stats, setStats] = useState({
     totalMessages: 0,
     activeConversations: 0,
@@ -22,6 +23,9 @@ export default function Dashboard() {
   useEffect(() => {
     checkUser();
     loadConversations();
+    
+    const interval = setInterval(loadConversations, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const checkUser = async () => {
@@ -34,18 +38,42 @@ export default function Dashboard() {
   };
 
   const loadConversations = async () => {
-    const { data } = await supabase
-      .from('conversations')
-      .select('*')
-      .order('last_message_at', { ascending: false });
+    const { data: { session } } = await supabase.auth.getSession();
     
-    if (data) {
-      setConversations(data);
-      setStats({
-        totalMessages: data.length * 3,
-        activeConversations: data.filter(c => c.status === 'active').length,
-        responseRate: 98
-      });
+    if (session) {
+      // Charger le secteur du client
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('sector')
+        .eq('email', session.user.email)
+        .single();
+      
+      if (clientData?.sector) {
+        setSelectedSector(clientData.sector);
+      }
+
+      // Charger les conversations
+      const { data } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('client_email', session.user.email)
+        .order('last_message_at', { ascending: false });
+      
+      if (data) {
+        setConversations(data);
+        
+        const { data: allMessages } = await supabase
+          .from('messages')
+          .select('*');
+        
+        const totalMsgs = allMessages?.length || 0;
+        
+        setStats({
+          totalMessages: totalMsgs,
+          activeConversations: data.filter(c => c.status === 'active').length,
+          responseRate: 98
+        });
+      }
     }
   };
 
@@ -60,10 +88,8 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
-      {/* Animated Background */}
       <div className="fixed inset-0">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
-        {/* Animated particles */}
         {[...Array(20)].map((_, i) => (
           <motion.div
             key={i}
@@ -85,7 +111,6 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -97,7 +122,9 @@ export default function Dashboard() {
         <nav className="space-y-2">
           {[
             { icon: MessageSquare, label: 'Conversations', path: '/dashboard', active: true },
+            { icon: Calendar, label: 'Smart RDV', path: '/appointments' },
             { icon: Users, label: 'Clients', path: '/clients' },
+            { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
             { icon: Settings, label: 'Paramètres', path: '/settings' },
           ].map((item, i) => (
@@ -125,9 +152,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Main Content */}
       <div className="ml-64 p-8 relative z-10">
-        {/* Header */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">
             Bienvenue 👋
@@ -137,7 +162,6 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* WhatsApp Connection Alert */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -164,7 +188,32 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* Stats Grid */}
+        {/* Quick Action Menu pour restos/cafés */}
+        {(selectedSector === 'restaurant' || selectedSector === 'cafe') && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass p-6 rounded-3xl mb-6 border-2 border-accent/30"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-white font-bold mb-1 flex items-center gap-2">
+                  🍽️ Gérez votre menu
+                </h3>
+                <p className="text-gray-400 text-sm">
+                  Ajoutez votre carte pour que l'IA réponde aux questions des clients
+                </p>
+              </div>
+              <button
+                onClick={() => router.push('/menu')}
+                className="px-6 py-3 bg-gradient-to-r from-primary to-secondary rounded-xl text-white font-semibold hover:scale-105 transition-transform"
+              >
+                Gérer le menu
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         <div className="grid grid-cols-3 gap-6 mb-8">
           {[
             { label: 'Messages envoyés', value: stats.totalMessages, icon: MessageSquare, color: 'primary' },
@@ -187,7 +236,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Conversations List */}
         <div className="glass p-6 rounded-3xl">
           <h3 className="text-xl font-bold text-white mb-6">Conversations récentes</h3>
           
@@ -206,6 +254,7 @@ export default function Dashboard() {
               {conversations.map((conv, i) => (
                 <div
                   key={i}
+                  onClick={() => router.push(`/conversation/${conv.id}`)}
                   className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
@@ -213,7 +262,11 @@ export default function Dashboard() {
                   </div>
                   <div className="flex-1">
                     <div className="font-semibold text-white">{conv.customer_phone}</div>
-                    <div className="text-sm text-gray-400">Dernière activité il y a 2h</div>
+                    <div className="text-sm text-gray-400">
+                      {conv.last_message_at 
+                        ? `Dernière activité: ${new Date(conv.last_message_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                        : 'Pas de message récent'}
+                    </div>
                   </div>
                   <div className="text-gray-500 text-sm">
                     {new Date(conv.created_at).toLocaleDateString()}

@@ -1,5 +1,6 @@
 import getRawBody from 'raw-body';
 import { createClient } from '@supabase/supabase-js';
+import { getSectorById } from '../../lib/sectors';
 
 // Initialiser Supabase
 const supabase = createClient(
@@ -49,14 +50,14 @@ export default async function handler(req, res) {
         const fromNumber = message.from;
         const incomingMessage = message.text.body;
         
-        // 🔥 NOUVEAU: Récupérer le Phone Number ID qui a reçu le message
+        // Récupérer le Phone Number ID qui a reçu le message
         const receivingPhoneNumberId = value.metadata?.phone_number_id;
 
         console.log('📱 Message reçu de:', fromNumber);
         console.log('📞 Phone Number ID:', receivingPhoneNumberId);
         console.log('💬 Contenu:', incomingMessage);
 
-        // 🔥 NOUVEAU: Trouver le client propriétaire de ce numéro
+        // Trouver le client propriétaire de ce numéro (avec secteur)
         const { data: client, error: clientError } = await supabase
           .from('clients')
           .select('*')
@@ -66,11 +67,11 @@ export default async function handler(req, res) {
 
         if (clientError || !client) {
           console.error('❌ Client non trouvé pour Phone Number ID:', receivingPhoneNumberId);
-          // Utiliser le système par défaut (pour les tests)
           console.log('⚠️ Utilisation du mode par défaut');
         }
 
         console.log('✅ Message pour le client:', client?.email || 'Défaut');
+        console.log('🏢 Secteur:', client?.sector || 'Non défini');
 
         let conversation = null;
 
@@ -133,7 +134,31 @@ export default async function handler(req, res) {
           console.error('❌ Erreur DB:', dbError);
         }
 
-        // Appeler OpenAI
+        // 🔥 Récupérer le contexte du secteur
+        const sectorInfo = client?.sector ? getSectorById(client.sector) : null;
+
+        // 🔥 Récupérer le menu si disponible
+        let menuContext = '';
+        if (sectorInfo?.menuEnabled && client) {
+          const { data: menuData } = await supabase
+            .from('menus')
+            .select('menu_text')
+            .eq('client_email', client.email)
+            .single();
+          
+          if (menuData?.menu_text) {
+            menuContext = `\n\nVOICI LA CARTE/MENU:\n${menuData.menu_text}\n\nUtilise ces informations pour répondre aux questions sur les plats, prix, et recommandations.`;
+            console.log('📋 Menu chargé pour l\'IA');
+          }
+        }
+
+        const systemPrompt = sectorInfo 
+          ? sectorInfo.promptContext + menuContext
+          : 'Tu es un assistant automatique ReplyFast. Réponds en français, de manière professionnelle et concise.' + menuContext;
+
+        console.log('🤖 Contexte IA:', sectorInfo?.name || 'Générique');
+
+        // Appeler OpenAI avec le contexte du secteur et menu
         console.log('🤖 Appel OpenAI...');
         const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -146,7 +171,7 @@ export default async function handler(req, res) {
             messages: [
               {
                 role: 'system',
-                content: `Tu es un assistant automatique pour ${client?.email || 'un commerce'}. Réponds en français, de manière professionnelle et concise.`
+                content: systemPrompt
               },
               {
                 role: 'user',
@@ -188,7 +213,7 @@ export default async function handler(req, res) {
           console.error('❌ Erreur DB (réponse bot):', dbError);
         }
 
-        // 🔥 NOUVEAU: Envoyer via le Phone Number ID du client (ou défaut)
+        // Envoyer via le Phone Number ID du client
         const phoneNumberToUse = receivingPhoneNumberId || process.env.META_PHONE_NUMBER_ID;
         
         console.log('📤 Envoi via Meta WhatsApp...');

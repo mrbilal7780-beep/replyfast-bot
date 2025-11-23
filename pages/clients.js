@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Phone, Mail } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -34,12 +34,10 @@ export default function Clients() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
-      {/* Background */}
       <div className="fixed inset-0">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
       </div>
 
-      {/* Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -51,7 +49,9 @@ export default function Clients() {
         <nav className="space-y-2">
           {[
             { icon: MessageSquare, label: 'Conversations', path: '/dashboard' },
+            { icon: Calendar, label: 'Smart RDV', path: '/appointments' },
             { icon: Users, label: 'Clients', path: '/clients', active: true },
+            { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
             { icon: Settings, label: 'Paramètres', path: '/settings' },
           ].map((item, i) => (
@@ -82,7 +82,6 @@ export default function Clients() {
         </button>
       </div>
 
-      {/* Main Content */}
       <div className="ml-64 p-8 relative z-10">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">
@@ -93,7 +92,6 @@ export default function Clients() {
           </p>
         </div>
 
-        {/* Clients Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {conversations.length === 0 ? (
             <div className="col-span-3 text-center py-12">
