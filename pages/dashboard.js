@@ -50,17 +50,7 @@ export default function Dashboard() {
   };
 
   const handleConnectWhatsApp = () => {
-    // Ouvrir Embedded Signup Meta
-    const width = 600;
-    const height = 800;
-    const left = (window.screen.width - width) / 2;
-    const top = (window.screen.height - height) / 2;
-    
-    window.open(
-      `https://www.facebook.com/v21.0/dialog/oauth?client_id=1361686089075783&redirect_uri=${encodeURIComponent('https://replyfast-bot.onrender.com/api/whatsapp-callback')}&scope=whatsapp_business_management,whatsapp_business_messaging&response_type=code`,
-      'whatsappSignup',
-      `width=${width},height=${height},left=${left},top=${top}`
-    );
+    router.push('/settings');
   };
 
   const handleLogout = async () => {
@@ -106,13 +96,14 @@ export default function Dashboard() {
 
         <nav className="space-y-2">
           {[
-            { icon: MessageSquare, label: 'Conversations', active: true },
-            { icon: Users, label: 'Clients' },
-            { icon: Zap, label: 'Analytics' },
-            { icon: Settings, label: 'Paramètres' },
+            { icon: MessageSquare, label: 'Conversations', path: '/dashboard', active: true },
+            { icon: Users, label: 'Clients', path: '/clients' },
+            { icon: Zap, label: 'Analytics', path: '/analytics' },
+            { icon: Settings, label: 'Paramètres', path: '/settings' },
           ].map((item, i) => (
             <button
               key={i}
+              onClick={() => router.push(item.path)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                 item.active
                   ? 'bg-primary/20 text-primary'
