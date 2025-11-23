@@ -1,4 +1,11 @@
 import getRawBody from 'raw-body';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialiser Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 export const config = {
   runtime: 'nodejs',
@@ -45,6 +52,53 @@ export default async function handler(req, res) {
         console.log('📱 Message reçu de:', fromNumber);
         console.log('💬 Contenu:', incomingMessage);
 
+        // Sauvegarder le message dans Supabase
+        try {
+          // 1. Trouver ou créer la conversation
+          let { data: conversation, error: convError } = await supabase
+            .from('conversations')
+            .select('id')
+            .eq('customer_phone', fromNumber)
+            .single();
+
+          if (convError || !conversation) {
+            // Créer une nouvelle conversation
+            const { data: newConv, error: createError } = await supabase
+              .from('conversations')
+              .insert([
+                {
+                  client_id: 1, // Pour l'instant, tout va au client ID 1
+                  customer_phone: fromNumber,
+                  status: 'active'
+                }
+              ])
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('❌ Erreur création conversation:', createError);
+            } else {
+              conversation = newConv;
+            }
+          }
+
+          // 2. Sauvegarder le message client
+          if (conversation) {
+            await supabase
+              .from('messages')
+              .insert([
+                {
+                  conversation_id: conversation.id,
+                  sender: 'customer',
+                  message: incomingMessage,
+                  message_type: 'text'
+                }
+              ]);
+          }
+        } catch (dbError) {
+          console.error('❌ Erreur DB:', dbError);
+        }
+
         // Appeler OpenAI
         console.log('🤖 Appel OpenAI...');
         const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -81,6 +135,24 @@ export default async function handler(req, res) {
         
         console.log('✅ Réponse OpenAI:', botReply);
 
+        // Sauvegarder la réponse du bot dans Supabase
+        try {
+          if (conversation) {
+            await supabase
+              .from('messages')
+              .insert([
+                {
+                  conversation_id: conversation.id,
+                  sender: 'bot',
+                  message: botReply,
+                  message_type: 'text'
+                }
+              ]);
+          }
+        } catch (dbError) {
+          console.error('❌ Erreur DB (réponse bot):', dbError);
+        }
+
         // Envoyer via Meta WhatsApp API
         console.log('📤 Envoi via Meta WhatsApp...');
         
@@ -106,7 +178,7 @@ export default async function handler(req, res) {
           throw new Error(`Meta error: ${metaResponse.status}`);
         }
 
-        console.log('✅ Message envoyé!');
+        console.log('✅ Message envoyé et sauvegardé!');
       }
     }
 
