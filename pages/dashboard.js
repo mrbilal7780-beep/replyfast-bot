@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, WifiOff, Calendar, TrendingUp } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, WifiOff, Calendar, TrendingUp, Upload } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -41,7 +41,6 @@ export default function Dashboard() {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (session) {
-      // Charger le secteur du client
       const { data: clientData } = await supabase
         .from('clients')
         .select('sector')
@@ -52,7 +51,6 @@ export default function Dashboard() {
         setSelectedSector(clientData.sector);
       }
 
-      // Charger les conversations
       const { data } = await supabase
         .from('conversations')
         .select('*')
@@ -123,6 +121,7 @@ export default function Dashboard() {
           {[
             { icon: MessageSquare, label: 'Conversations', path: '/dashboard', active: true },
             { icon: Calendar, label: 'Smart RDV', path: '/appointments' },
+            { icon: Upload, label: 'Menu Manager', path: '/menu' },
             { icon: Users, label: 'Clients', path: '/clients' },
             { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
@@ -187,32 +186,6 @@ export default function Dashboard() {
             </button>
           </div>
         </motion.div>
-
-        {/* Quick Action Menu pour restos/cafés */}
-        {(selectedSector === 'restaurant' || selectedSector === 'cafe') && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass p-6 rounded-3xl mb-6 border-2 border-accent/30"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-bold mb-1 flex items-center gap-2">
-                  🍽️ Gérez votre menu
-                </h3>
-                <p className="text-gray-400 text-sm">
-                  Ajoutez votre carte pour que l'IA réponde aux questions des clients
-                </p>
-              </div>
-              <button
-                onClick={() => router.push('/menu')}
-                className="px-6 py-3 bg-gradient-to-r from-primary to-secondary rounded-xl text-white font-semibold hover:scale-105 transition-transform"
-              >
-                Gérer le menu
-              </button>
-            </div>
-          </motion.div>
-        )}
 
         <div className="grid grid-cols-3 gap-6 mb-8">
           {[

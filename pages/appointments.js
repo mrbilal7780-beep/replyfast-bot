@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, Clock, Check, X, Phone, TrendingUp } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, Clock, Check, X, Phone, TrendingUp, Upload } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -92,6 +92,7 @@ export default function Appointments() {
           {[
             { icon: MessageSquare, label: 'Conversations', path: '/dashboard' },
             { icon: Calendar, label: 'Smart RDV', path: '/appointments', active: true },
+            { icon: Upload, label: 'Menu Manager', path: '/menu' },
             { icon: Users, label: 'Clients', path: '/clients' },
             { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
             { icon: Zap, label: 'Analytics', path: '/analytics' },

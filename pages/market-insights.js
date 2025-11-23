@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, DollarSign, Clock, Target } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, DollarSign, Clock, Target, Upload } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import { getSectorById } from '../lib/sectors';
@@ -71,12 +71,10 @@ export default function MarketInsights() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
-      {/* Background */}
       <div className="fixed inset-0">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
       </div>
 
-      {/* Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -89,6 +87,7 @@ export default function MarketInsights() {
           {[
             { icon: MessageSquare, label: 'Conversations', path: '/dashboard' },
             { icon: Calendar, label: 'Smart RDV', path: '/appointments' },
+            { icon: Upload, label: 'Menu Manager', path: '/menu' },
             { icon: Users, label: 'Clients', path: '/clients' },
             { icon: TrendingUp, label: 'Market Insights', path: '/market-insights', active: true },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
@@ -121,7 +120,6 @@ export default function MarketInsights() {
         </button>
       </div>
 
-      {/* Main Content */}
       <div className="ml-64 p-8 relative z-10">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
@@ -135,7 +133,6 @@ export default function MarketInsights() {
           </p>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {Object.entries(insights).map(([key, value], i) => {
             const icons = {
@@ -170,7 +167,6 @@ export default function MarketInsights() {
           })}
         </div>
 
-        {/* Heures de Pointe */}
         {insights.heuresPointe && (
           <div className="glass p-6 rounded-3xl mb-6">
             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
@@ -196,7 +192,6 @@ export default function MarketInsights() {
           </div>
         )}
 
-        {/* Recommandations */}
         <div className="glass p-6 rounded-3xl">
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
             <Target className="w-6 h-6 text-accent" />
@@ -224,7 +219,6 @@ export default function MarketInsights() {
           </div>
         </div>
 
-        {/* CTA */}
         <div className="mt-6 glass p-6 rounded-3xl border-2 border-primary/50">
           <div className="flex items-center justify-between">
             <div>

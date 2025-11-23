@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -50,6 +50,7 @@ export default function Clients() {
           {[
             { icon: MessageSquare, label: 'Conversations', path: '/dashboard' },
             { icon: Calendar, label: 'Smart RDV', path: '/appointments' },
+            { icon: Upload, label: 'Menu Manager', path: '/menu' },
             { icon: Users, label: 'Clients', path: '/clients', active: true },
             { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
