@@ -215,34 +215,13 @@ export default function SettingsPage() {
                   }}
                 >
                   <option value="" className="bg-dark text-gray-400">Sélectionnez votre secteur</option>
-                  <optgroup label="🔥 Gold Mine (Très rentable)" className="bg-dark">
-                    {getSectorsList().filter(s => s.tier === 1).map((sector) => (
+                  {getSectorsList()
+                    .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+                    .map((sector) => (
                       <option key={sector.id} value={sector.id} className="bg-dark py-2">
                         {sector.emoji} {sector.name}
                       </option>
                     ))}
-                  </optgroup>
-                  <optgroup label="💎 Très rentable" className="bg-dark">
-                    {getSectorsList().filter(s => s.tier === 2).map((sector) => (
-                      <option key={sector.id} value={sector.id} className="bg-dark py-2">
-                        {sector.emoji} {sector.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="🎯 Volume massif" className="bg-dark">
-                    {getSectorsList().filter(s => s.tier === 3).map((sector) => (
-                      <option key={sector.id} value={sector.id} className="bg-dark py-2">
-                        {sector.emoji} {sector.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="💡 Niches rentables" className="bg-dark">
-                    {getSectorsList().filter(s => s.tier === 4).map((sector) => (
-                      <option key={sector.id} value={sector.id} className="bg-dark py-2">
-                        {sector.emoji} {sector.name}
-                      </option>
-                    ))}
-                  </optgroup>
                 </select>
                 <p className="text-gray-400 text-sm mt-2">
                   Choisissez votre secteur pour personnaliser les réponses de l'IA
