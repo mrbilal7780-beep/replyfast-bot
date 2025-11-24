@@ -1,5 +1,5 @@
-import getRawBody from 'raw-body';
 import { createClient } from '@supabase/supabase-js';
+import getRawBody from 'raw-body';
 import { getSectorById } from '../../lib/sectors';
 
 const supabase = createClient(
@@ -15,43 +15,121 @@ export const config = {
   },
 };
 
-// 📅 FONCTION POUR CALCULER LES DATES
-function parseRelativeDate(text) {
+// 🧠 DÉTECTION INTELLIGENTE DE RDV AVEC GPT-4O-MINI
+async function detectAppointment(conversationHistory, clientEmail, customerPhone, businessInfo) {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const lower = text.toLowerCase();
-  
-  if (lower.includes('aujourd\'hui') || lower.includes('aujourdhui')) {
-    return today.toISOString().split('T')[0];
+  const todayStr = today.toLocaleDateString('fr-FR', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
+  const fullConvo = conversationHistory.map(m => 
+    `${m.role === 'user' ? 'Client' : 'Assistant'}: ${m.content}`
+  ).join('\n');
+
+  const extractionPrompt = `Tu es un expert en analyse de conversations pour la prise de rendez-vous.
+
+CONVERSATION:
+${fullConvo}
+
+CONTEXTE TEMPOREL:
+- Aujourd'hui: ${todayStr}
+- Date ISO: ${today.toISOString().split('T')[0]}
+
+MISSION:
+Analyse cette conversation et détermine si le client veut prendre un rendez-vous.
+Extrais: date, heure, service demandé, nom du client.
+
+RÈGLES DE TRANSFORMATION DES DATES:
+- "demain" = ${new Date(today.getTime() + 86400000).toISOString().split('T')[0]}
+- "après-demain" = ${new Date(today.getTime() + 172800000).toISOString().split('T')[0]}
+- "lundi prochain", "mardi prochain" = calculer la date du prochain jour
+- Si date partielle (ex: "15 décembre"), ajoute l'année en cours (${today.getFullYear()})
+- Confiance entre 0 et 1
+
+IMPORTANT:
+- readyToCreate = true SEULEMENT si tu as date + heure + service (nom optionnel)
+- missingInfo = liste exacte de ce qui manque parmi: ["date", "time", "service", "name"]
+
+Réponds UNIQUEMENT avec ce JSON (sans markdown, sans backticks):
+{
+  "hasAppointment": true/false,
+  "readyToCreate": true/false,
+  "date": "YYYY-MM-DD" ou null,
+  "time": "HH:MM" ou null,
+  "service": "service exact" ou null,
+  "name": "nom" ou null,
+  "missingInfo": ["date", "time", "service"],
+  "confidence": 0.95
+}`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: extractionPrompt }],
+        temperature: 0.1,
+        max_tokens: 400
+      })
+    });
+
+    const data = await response.json();
+    let result = data.choices[0].message.content.trim()
+      .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    const appointmentData = JSON.parse(result);
+    
+    console.log('🧠 Analyse RDV:', appointmentData);
+
+    // Si prêt à créer le RDV
+    if (appointmentData.readyToCreate && appointmentData.date && appointmentData.time) {
+      // Vérifier si le créneau est libre
+      const existingRdv = await loadCalendar(clientEmail, appointmentData.date);
+      const isSlotTaken = existingRdv.some(rdv => rdv.appointment_time === appointmentData.time);
+      
+      if (isSlotTaken) {
+        // Suggérer d'autres créneaux disponibles
+        const available = suggestAvailableSlots(existingRdv, businessInfo?.horaires || {}, appointmentData.date);
+        return {
+          ...appointmentData,
+          slotTaken: true,
+          availableSlots: available
+        };
+      }
+      
+      // ✅ Créer le RDV dans Supabase
+      const { error } = await supabase
+        .from('appointments')
+        .insert([{
+          client_email: clientEmail,
+          customer_phone: customerPhone,
+          customer_name: appointmentData.name || 'Client',
+          appointment_date: appointmentData.date,
+          appointment_time: appointmentData.time,
+          service: appointmentData.service || 'Service général',
+          status: 'pending',
+          notes: 'RDV pris automatiquement par IA'
+        }]);
+      
+      if (!error) {
+        console.log('✅ RDV CRÉÉ:', appointmentData);
+        return { ...appointmentData, created: true };
+      }
+    }
+    
+    return appointmentData;
+
+  } catch (error) {
+    console.error('❌ Erreur détection RDV:', error);
+    return { hasAppointment: false, confidence: 0 };
   }
-  
-  if (lower.includes('demain')) {
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
-  }
-  
-  if (lower.includes('après-demain') || lower.includes('apres-demain')) {
-    const dayAfter = new Date(today);
-    dayAfter.setDate(dayAfter.getDate() + 2);
-    return dayAfter.toISOString().split('T')[0];
-  }
-  
-  // Format "24 novembre", "24/11", etc.
-  const dateMatch = text.match(/(\d{1,2})[\/\-\s](novembre|décembre|janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|11|12|01|02|03|04|05|06|07|08|09|10)/i);
-  if (dateMatch) {
-    const day = dateMatch[1].padStart(2, '0');
-    const monthMap = {
-      'janvier': '01', 'février': '02', 'mars': '03', 'avril': '04',
-      'mai': '05', 'juin': '06', 'juillet': '07', 'août': '08',
-      'septembre': '09', 'octobre': '10', 'novembre': '11', 'décembre': '12'
-    };
-    const month = monthMap[dateMatch[2].toLowerCase()] || dateMatch[2].padStart(2, '0');
-    return `${today.getFullYear()}-${month}-${day}`;
-  }
-  
-  return null;
 }
 
 // 📅 CHARGER LE CALENDRIER DES RDV
@@ -83,123 +161,11 @@ function suggestAvailableSlots(existingAppointments, businessHours, date) {
     if (h < 18) allSlots.push(`${h.toString().padStart(2, '0')}:30`);
   }
   
-  // Retirer les créneaux pris
+  // Retirer les créneaux déjà pris
   const bookedSlots = existingAppointments.map(a => a.appointment_time);
   const available = allSlots.filter(slot => !bookedSlots.includes(slot));
   
-  return available.slice(0, 5); // Top 5 créneaux
-}
-
-// 🧠 DÉTECTION INTELLIGENTE DE RDV
-async function detectAppointment(conversationHistory, clientEmail, customerPhone, businessInfo) {
-  const today = new Date();
-  const todayStr = today.toLocaleDateString('fr-FR', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
-
-  const fullConvo = conversationHistory.map(m => 
-    `${m.role === 'user' ? 'Client' : 'Assistant'}: ${m.content}`
-  ).join('\n');
-
-  const extractionPrompt = `Tu es un expert en analyse de conversations pour la prise de rendez-vous.
-
-CONVERSATION:
-${fullConvo}
-
-CONTEXTE:
-- Aujourd'hui: ${todayStr}
-- Date ISO: ${today.toISOString().split('T')[0]}
-
-INSTRUCTIONS:
-Analyse cette conversation et détermine si le client veut un RDV.
-Extrait: date, heure, service, nom.
-
-RÈGLES:
-- "demain" = ${new Date(today.getTime() + 86400000).toISOString().split('T')[0]}
-- "après-demain" = ${new Date(today.getTime() + 172800000).toISOString().split('T')[0]}
-- Si date partielle, ajoute l'année en cours
-- Confiance entre 0 et 1
-
-Réponds UNIQUEMENT avec ce JSON (sans markdown):
-{
-  "hasAppointment": true/false,
-  "readyToCreate": true/false,
-  "date": "YYYY-MM-DD" ou null,
-  "time": "HH:MM" ou null,
-  "service": "service exact" ou null,
-  "name": "nom" ou null,
-  "missingInfo": ["date", "time", "service"],
-  "confidence": 0.95
-}`;
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4',
-        messages: [{ role: 'user', content: extractionPrompt }],
-        temperature: 0.1,
-        max_tokens: 300
-      })
-    });
-
-    const data = await response.json();
-    let result = data.choices[0].message.content.trim()
-      .replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
-    const appointmentData = JSON.parse(result);
-    
-    console.log('🧠 Analyse RDV:', appointmentData);
-
-    // Si prêt à créer
-    if (appointmentData.readyToCreate && appointmentData.date && appointmentData.time) {
-      // Vérifier si le créneau est libre
-      const existingRdv = await loadCalendar(clientEmail, appointmentData.date);
-      const isSlotTaken = existingRdv.some(rdv => rdv.appointment_time === appointmentData.time);
-      
-      if (isSlotTaken) {
-        // Suggérer d'autres créneaux
-        const available = suggestAvailableSlots(existingRdv, businessInfo?.horaires || {}, appointmentData.date);
-        return {
-          ...appointmentData,
-          slotTaken: true,
-          availableSlots: available
-        };
-      }
-      
-      // Créer le RDV
-      const { error } = await supabase
-        .from('appointments')
-        .insert([{
-          client_email: clientEmail,
-          customer_phone: customerPhone,
-          customer_name: appointmentData.name || 'Client',
-          appointment_date: appointmentData.date,
-          appointment_time: appointmentData.time,
-          service: appointmentData.service || 'Service général',
-          status: 'pending',
-          notes: 'RDV pris automatiquement par IA'
-        }]);
-      
-      if (!error) {
-        console.log('✅ RDV CRÉÉ!');
-        return { ...appointmentData, created: true };
-      }
-    }
-    
-    return appointmentData;
-
-  } catch (error) {
-    console.error('❌ Erreur détection:', error);
-    return { hasAppointment: false, confidence: 0 };
-  }
+  return available.slice(0, 5); // Top 5 créneaux disponibles
 }
 
 export default async function handler(req, res) {
@@ -233,7 +199,7 @@ export default async function handler(req, res) {
         const incomingMessage = message.text.body;
         const receivingPhoneNumberId = value.metadata?.phone_number_id;
 
-        console.log('📱 Message:', fromNumber, incomingMessage);
+        console.log('📱 Message reçu:', fromNumber, '|', incomingMessage);
 
         // 1️⃣ Identifier le client
         const { data: client } = await supabase
@@ -244,11 +210,11 @@ export default async function handler(req, res) {
           .single();
 
         if (!client) {
-          console.error('❌ Client non trouvé');
+          console.error('❌ Client non trouvé pour phone_number_id:', receivingPhoneNumberId);
           return res.status(200).send('OK');
         }
 
-        console.log('✅ Client:', client.email, '| Secteur:', client.sector);
+        console.log('✅ Client trouvé:', client.email, '| Secteur:', client.sector);
 
         // 2️⃣ Gérer la conversation
         let { data: conversation } = await supabase
@@ -287,13 +253,13 @@ export default async function handler(req, res) {
             message_type: 'text'
           }]);
 
-        // 4️⃣ Charger historique (10 derniers messages)
+        // 4️⃣ Charger historique (20 derniers messages pour contexte)
         const { data: recentMessages } = await supabase
           .from('messages')
           .select('*')
           .eq('conversation_id', conversation.id)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(20);
 
         const conversationHistory = (recentMessages || []).reverse().map(m => ({
           role: m.sender === 'customer' ? 'user' : 'assistant',
@@ -316,10 +282,10 @@ export default async function handler(req, res) {
           .eq('client_email', client.email)
           .single();
 
-        // 7️⃣ Charger secteur
+        // 7️⃣ Charger infos secteur
         const sectorInfo = getSectorById(client.sector);
 
-        // 8️⃣ Détecter RDV
+        // 8️⃣ Détecter intentions de RDV
         const rdvInfo = await detectAppointment(
           conversationHistory,
           client.email,
@@ -327,7 +293,7 @@ export default async function handler(req, res) {
           businessInfo
         );
 
-        // 9️⃣ Construire le contexte ultra complet
+        // 9️⃣ Construire le contexte ULTRA COMPLET
         const today = new Date();
         const todayStr = today.toLocaleDateString('fr-FR', { 
           weekday: 'long', 
@@ -342,7 +308,7 @@ export default async function handler(req, res) {
 Nom: ${businessInfo.nom_entreprise || 'Non défini'}
 Adresse: ${businessInfo.adresse || 'Non définie'}
 Téléphone: ${businessInfo.telephone || 'Non défini'}
-${businessInfo.description ? `\nDescription: ${businessInfo.description}` : ''}
+${businessInfo.description ? `Description: ${businessInfo.description}` : ''}
 
 📅 HORAIRES D'OUVERTURE:
 ${Object.entries(businessInfo.horaires || {}).map(([jour, info]) => 
@@ -352,14 +318,14 @@ ${Object.entries(businessInfo.horaires || {}).map(([jour, info]) =>
 💰 TARIFS:
 ${businessInfo.tarifs && Object.keys(businessInfo.tarifs).length > 0 
   ? Object.entries(businessInfo.tarifs).map(([service, prix]) => `${service}: ${prix}`).join('\n')
-  : 'Voir le menu pour les tarifs'}
+  : 'Tarifs sur demande'}
 
 💳 Paiements acceptés: ${businessInfo.moyens_paiement?.join(', ') || 'Espèces, CB'}`;
         }
 
         let menuContext = '';
         if (menuData?.menu_text) {
-          menuContext = `\n\n📋 MENU/CATALOGUE:
+          menuContext = `\n\n📋 MENU/CATALOGUE COMPLET:
 ${menuData.menu_text}`;
         }
 
@@ -368,36 +334,48 @@ ${menuData.menu_text}`;
           const dateStr = new Date(rdvInfo.date).toLocaleDateString('fr-FR', { 
             weekday: 'long', day: 'numeric', month: 'long' 
           });
-          rdvGuidance = `\n\n✅ RDV VIENT D'ÊTRE CRÉÉ!
-Confirme au client avec enthousiasme:
-"✅ Parfait! Votre rendez-vous est confirmé pour le ${dateStr} à ${rdvInfo.time}${rdvInfo.service ? ` pour ${rdvInfo.service}` : ''}. À très bientôt!"`;
+          rdvGuidance = `\n\n✅ 🎉 RDV VIENT D'ÊTRE CRÉÉ AVEC SUCCÈS!
+Tu DOIS confirmer au client avec ENTHOUSIASME:
+"✅ Parfait! Votre rendez-vous est confirmé pour le ${dateStr} à ${rdvInfo.time}${rdvInfo.service ? ` pour ${rdvInfo.service}` : ''}. À très bientôt! 🎉"`;
         } else if (rdvInfo.slotTaken) {
-          rdvGuidance = `\n\n⚠️ Le créneau ${rdvInfo.time} le ${rdvInfo.date} est déjà pris.
-Propose ces créneaux disponibles: ${rdvInfo.availableSlots.join(', ')}`;
+          rdvGuidance = `\n\n⚠️ CRÉNEAU DÉJÀ PRIS
+Le créneau ${rdvInfo.time} le ${rdvInfo.date} est malheureusement déjà réservé.
+Propose GENTIMENT ces créneaux disponibles: ${rdvInfo.availableSlots.join(', ')}`;
         } else if (rdvInfo.hasAppointment && !rdvInfo.readyToCreate) {
-          rdvGuidance = `\n\n🎯 Le client veut un RDV mais il manque: ${rdvInfo.missingInfo.join(', ')}.
-Demande les infos manquantes de manière naturelle et concise.`;
+          rdvGuidance = `\n\n🎯 CLIENT VEUT UN RDV - Infos manquantes: ${rdvInfo.missingInfo.join(', ')}
+Demande les infos manquantes de manière NATURELLE et CONCISE.
+Ne redemande JAMAIS ce qui a déjà été dit dans l'historique.`;
         }
 
-        const systemPrompt = `${sectorInfo?.promptContext || 'Tu es un assistant automatique ReplyFast.'}${businessContext}${menuContext}
+        // 🔟 PROMPT SYSTÈME ULTRA OPTIMISÉ POUR GPT-4O-MINI
+        const systemPrompt = `${sectorInfo?.promptContext || 'Tu es un assistant WhatsApp automatique pour ReplyFast AI.'}${businessContext}${menuContext}
 
 📅 INFORMATIONS TEMPORELLES:
 - Aujourd'hui: ${todayStr}
-- Date ISO: ${today.toISOString().split('T')[0]}
+- Date ISO complète: ${today.toISOString().split('T')[0]}
+- Heure actuelle: ${today.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
 
 ${rdvGuidance}
 
-🎯 RÈGLES D'OR:
-- Sois chaleureux, professionnel et efficace
-- Réponds en 2-3 phrases MAX (concis!)
-- Ne redemande JAMAIS une info déjà donnée
-- Utilise les infos business/menu pour répondre précisément
-- Si question sur prix/horaires, donne la vraie info
-- Si RDV créé, termine par "À très bientôt!" 🎉`;
+🎯 RÈGLES D'OR À RESPECTER ABSOLUMENT:
+1. CONCISION: Réponds en 2-3 phrases MAXIMUM (sauf si détail du menu demandé)
+2. MÉMOIRE: Ne redemande JAMAIS une info déjà donnée dans l'historique
+3. PRÉCISION: Utilise les vraies infos (horaires, tarifs, menu) pour répondre
+4. NATUREL: Parle comme un humain chaleureux et professionnel
+5. PROACTIF: Si question sur prix/horaires, donne la VRAIE info immédiatement
+6. RDV: Si RDV créé, termine par "À très bientôt! 🎉"
+7. FRANÇAIS: Réponds TOUJOURS en français correct
 
-        console.log('🤖 Appel GPT-4...');
+EXEMPLES DE BONNES RÉPONSES:
+❌ MAUVAIS: "Bien sûr! Je peux vous aider. Quels sont vos besoins aujourd'hui?"
+✅ BON: "Bonjour! Vous souhaitez un rendez-vous? 😊"
 
-        // 🔟 Appel OpenAI GPT-4
+❌ MAUVAIS: "Je vous remercie pour votre message. Je vais regarder nos disponibilités..."
+✅ BON: "Avec plaisir! Quel jour vous arrange? Nous sommes ouverts du lundi au samedi."`;
+
+        console.log('🤖 Appel GPT-4o-mini...');
+
+        // 1️⃣1️⃣ Appel OpenAI GPT-4o-mini (ULTRA ÉCONOMIQUE)
         const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -405,12 +383,12 @@ ${rdvGuidance}
             'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
           },
           body: JSON.stringify({
-            model: 'gpt-4',
+            model: 'gpt-4o-mini',
             messages: [
               { role: 'system', content: systemPrompt },
               ...conversationHistory
             ],
-            max_tokens: 250,
+            max_tokens: 300,
             temperature: 0.7
           })
         });
@@ -422,9 +400,9 @@ ${rdvGuidance}
         const data = await openaiResponse.json();
         const botReply = data.choices[0].message.content;
 
-        console.log('✅ Réponse:', botReply);
+        console.log('✅ Réponse générée:', botReply);
 
-        // 1️⃣1️⃣ Sauvegarder réponse
+        // 1️⃣2️⃣ Sauvegarder réponse bot
         await supabase
           .from('messages')
           .insert([{
@@ -434,7 +412,7 @@ ${rdvGuidance}
             message_type: 'text'
           }]);
 
-        // 1️⃣2️⃣ Envoyer via WhatsApp
+        // 1️⃣3️⃣ Envoyer via WhatsApp
         await fetch(
           `https://graph.facebook.com/v21.0/${receivingPhoneNumberId}/messages`,
           {
@@ -451,14 +429,14 @@ ${rdvGuidance}
           }
         );
 
-        console.log('✅ Envoyé!');
+        console.log('✅ Message WhatsApp envoyé!');
       }
     }
 
     return res.status(200).send('OK');
 
   } catch (error) {
-    console.error('❌ ERREUR:', error);
+    console.error('❌ ERREUR COMPLÈTE:', error);
     return res.status(500).json({ error: error.message });
   }
 }

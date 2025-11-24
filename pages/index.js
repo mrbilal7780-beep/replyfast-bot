@@ -1,72 +1,44 @@
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Zap, Shield, ArrowRight } from 'lucide-react';
+import { ArrowRight, Zap, Shield, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 export default function Home() {
   const router = useRouter();
 
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      // Vérifier si le profil est complété
-      const { data: client } = await supabase
-        .from('clients')
-        .select('profile_completed')
-        .eq('email', session.user.email)
-        .single();
-      
-      if (client?.profile_completed) {
-        router.push('/dashboard');
-      } else {
-        router.push('/onboarding');
-      }
-    }
-  };
-
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 gradient-bg opacity-20"></div>
-      
-      {/* Navbar */}
-      <nav className="relative z-10 flex justify-between items-center p-6 max-w-7xl mx-auto">
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="text-2xl font-bold"
-        >
-          <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-            ReplyFast AI
-          </span>
-        </motion.div>
-        
-        <motion.button
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          onClick={() => router.push('/login')}
-          className="glass px-6 py-2 rounded-full text-white hover:scale-105 transition-transform"
-        >
-          Se connecter
-        </motion.button>
-      </nav>
+      {/* Animated background */}
+      <div className="fixed inset-0">
+        <div className="absolute inset-0 gradient-bg opacity-10"></div>
+        <div className="absolute inset-0">
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-2 h-2 bg-primary/30 rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                y: [0, -30, 0],
+                opacity: [0.3, 0.8, 0.3],
+              }}
+              transition={{
+                duration: 3 + Math.random() * 2,
+                repeat: Infinity,
+                delay: Math.random() * 2,
+              }}
+            />
+          ))}
+        </div>
+      </div>
 
       {/* Hero Section */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-20">
+      <div className="relative z-10 container mx-auto px-4 py-20">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           className="text-center"
         >
           {/* Badge */}
@@ -77,7 +49,7 @@ export default function Home() {
             className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full mb-8"
           >
             <Sparkles className="w-4 h-4 text-accent" />
-            <span className="text-sm">Propulsé par GPT-4</span>
+            <span className="text-sm">Propulsé par GPT-4o-mini</span>
           </motion.div>
 
           {/* Title */}
@@ -161,8 +133,8 @@ export default function Home() {
             },
             {
               icon: <Sparkles className="w-8 h-8" />,
-              title: "IA Intelligente",
-              description: "GPT-4 comprend vos clients"
+              title: "IA de pointe",
+              description: "IA ultra optimisée qui comprend vos clients"
             }
           ].map((feature, i) => (
             <motion.div
@@ -187,42 +159,53 @@ export default function Home() {
 
         {/* Pricing Card */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1 }}
-          className="glass max-w-2xl mx-auto mt-32 p-12 rounded-3xl text-center"
+          className="mt-32 max-w-4xl mx-auto"
         >
-          <div className="inline-block px-4 py-1 bg-accent/20 rounded-full mb-6">
-            <span className="text-accent font-semibold">Offre de lancement</span>
-          </div>
-          
-          <div className="text-6xl font-bold mb-2">
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              19,99€
-            </span>
-          </div>
-          <div className="text-gray-400 mb-8">par mois • 0,66€/jour</div>
-          
-          <div className="text-left space-y-3 mb-8">
-            {[
-              "Réponses IA illimitées",
-              "WhatsApp Business intégré",
-              "Dashboard en temps réel",
-              "Support prioritaire"
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-accent"></div>
-                <span className="text-gray-300">{item}</span>
-              </div>
-            ))}
-          </div>
+          <div className="glass p-12 rounded-3xl border-2 border-primary/50">
+            <div className="text-center mb-8">
+              <h2 className="text-4xl font-bold text-white mb-4">
+                Un seul prix, tout inclus
+              </h2>
+              <p className="text-gray-400">
+                Pas de frais cachés, pas de surprises
+              </p>
+            </div>
 
-          <button
-            onClick={() => router.push('/signup')}
-            className="w-full py-4 bg-gradient-to-r from-primary to-secondary rounded-full text-white font-semibold text-lg hover:scale-105 transition-transform"
-          >
-            Commencer maintenant
-          </button>
+            <div className="text-center mb-8">
+              <div className="text-6xl font-bold text-white mb-2">
+                79€
+                <span className="text-2xl text-gray-400">/mois</span>
+              </div>
+              <p className="text-accent font-semibold">
+                Économisez 200€/mois vs GPT-4
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-8">
+              {[
+                "✅ Réponses IA illimitées",
+                "✅ Gestion RDV automatique",
+                "✅ Analytics en temps réel",
+                "✅ Support 24/7",
+                "✅ Multi-secteurs",
+                "✅ Intégration WhatsApp"
+              ].map((feature, i) => (
+                <div key={i} className="flex items-center gap-3 text-white">
+                  <span>{feature}</span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => router.push('/signup')}
+              className="w-full py-4 bg-gradient-to-r from-primary to-secondary rounded-xl text-white font-semibold text-lg hover:scale-105 transition-transform"
+            >
+              Commencer maintenant
+            </button>
+          </div>
         </motion.div>
       </div>
     </div>
