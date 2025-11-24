@@ -62,7 +62,8 @@ export default function Dashboard() {
         
         const { data: allMessages } = await supabase
           .from('messages')
-          .select('*');
+          .select('*')
+          .eq('conversation_id', { in: data.map(c => c.id) });
         
         const totalMsgs = allMessages?.length || 0;
         
@@ -109,6 +110,7 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -151,6 +153,7 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* Main Content */}
       <div className="ml-64 p-8 relative z-10">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">
