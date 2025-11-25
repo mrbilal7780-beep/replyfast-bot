@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Check, Loader, Sparkles } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Loader, Sparkles, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 import { getSectorsList } from '../lib/sectors';
@@ -15,19 +15,20 @@ export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
-  
+  const [whatsappConnected, setWhatsappConnected] = useState(false);
+
   // Données du formulaire
   const [formData, setFormData] = useState({
     // Étape 1: Secteur
     sector: '',
-    
+
     // Étape 2: Infos entreprise
     nom_entreprise: '',
     telephone: '',
     adresse: '',
     email_contact: '',
     description: '',
-    
+
     // Étape 3: Horaires
     horaires: {
       lundi: { ouvert: true, horaires: '09:00-18:00' },
@@ -38,12 +39,10 @@ export default function Onboarding() {
       samedi: { ouvert: true, horaires: '10:00-17:00' },
       dimanche: { ouvert: false, horaires: 'Fermé' }
     },
-    
-    // Étape 4: Tarifs (adapté au secteur)
-    tarifs: {},
-    
-    // Étape 5: WhatsApp
-    whatsapp_phone_number_id: ''
+
+    // WhatsApp (sera rempli automatiquement par Embedded Signup)
+    whatsapp_phone_number_id: '',
+    waba_id: ''
   });
 
   useEffect(() => {
@@ -56,14 +55,14 @@ export default function Onboarding() {
       router.push('/login');
     } else {
       setUser(session.user);
-      
+
       // Vérifier si déjà configuré
       const { data: client } = await supabase
         .from('clients')
         .select('profile_completed')
         .eq('email', session.user.email)
         .single();
-      
+
       if (client?.profile_completed) {
         router.push('/dashboard');
       }
@@ -71,27 +70,73 @@ export default function Onboarding() {
   };
 
   const handleNext = () => {
-    if (step < 5) setStep(step + 1);
+    if (step < 4) setStep(step + 1);
   };
 
   const handlePrev = () => {
     if (step > 1) setStep(step - 1);
   };
 
+  // Meta Embedded Signup
+  const handleWhatsAppConnect = () => {
+    if (typeof window === 'undefined' || !window.FB) {
+      alert('❌ SDK Facebook non chargé. Veuillez actualiser la page et réessayer.');
+      return;
+    }
+
+    setLoading(true);
+
+    window.FB.login(function(response) {
+      if (response.authResponse) {
+        const phoneNumberId = response.authResponse.phone_number_id;
+        const wabaId = response.authResponse.waba_id;
+
+        // Mettre à jour le state
+        setFormData({
+          ...formData,
+          whatsapp_phone_number_id: phoneNumberId,
+          waba_id: wabaId
+        });
+
+        setWhatsappConnected(true);
+        setLoading(false);
+
+        // Message de succès
+        alert('✅ WhatsApp Business connecté avec succès!');
+      } else {
+        setLoading(false);
+        alert('❌ Connexion annulée ou échouée. Réessayez.');
+      }
+    }, {
+      scope: 'whatsapp_business_management,whatsapp_business_messaging',
+      extras: {
+        setup: {
+          // Configuration du flow
+        }
+      }
+    });
+  };
+
   const handleSubmit = async () => {
+    if (!whatsappConnected) {
+      alert('⚠️ Veuillez connecter WhatsApp Business avant de continuer.');
+      return;
+    }
+
     setLoading(true);
     try {
       // 1. Sauvegarder dans clients
       await supabase
         .from('clients')
-        .upsert({
-          email: user.email,
+        .update({
           sector: formData.sector,
           whatsapp_phone_number_id: formData.whatsapp_phone_number_id,
+          waba_id: formData.waba_id,
           whatsapp_connected: true,
           company_name: formData.nom_entreprise,
           profile_completed: true
-        });
+        })
+        .eq('email', user.email);
 
       // 2. Sauvegarder business_info
       await supabase
@@ -104,52 +149,30 @@ export default function Onboarding() {
           email_contact: formData.email_contact,
           description: formData.description,
           horaires: formData.horaires,
-          tarifs: formData.tarifs
+          tarifs: {} // Vide, sera rempli dans Menu Manager
         });
 
       // 3. Créer préférences utilisateur
       await supabase
         .from('user_preferences')
         .upsert({
-          user_email: user.email,
-          theme: 'dark'
+          client_email: user.email,
+          theme: 'dark',
+          language: 'fr'
         });
 
       router.push('/dashboard');
     } catch (error) {
       console.error('Erreur:', error);
-      alert('Erreur lors de la configuration: ' + error.message);
+      alert('❌ Erreur lors de la configuration: ' + error.message);
+      setLoading(false);
     }
-    setLoading(false);
-  };
-
-  // Formulaires adaptés par secteur
-  const getTarifsFields = () => {
-    const sector = formData.sector;
-    
-    if (['coiffure', 'beaute', 'tatouage'].includes(sector)) {
-      return ['Coupe homme', 'Coupe femme', 'Coloration', 'Brushing'];
-    }
-    if (['sport', 'fitness', 'yoga'].includes(sector)) {
-      return ['Cotisation mensuelle', 'Cotisation annuelle', 'Cours à l\'unité'];
-    }
-    if (['restaurant', 'cafe'].includes(sector)) {
-      return ['Menu du jour', 'Plat principal', 'Dessert', 'Boisson'];
-    }
-    if (['medecin', 'veterinaire'].includes(sector)) {
-      return ['Consultation', 'Urgence', 'Visite à domicile'];
-    }
-    if (['garage', 'reparation'].includes(sector)) {
-      return ['Révision', 'Vidange', 'Pneus', 'Diagnostic'];
-    }
-    
-    return ['Service 1', 'Service 2', 'Service 3'];
   };
 
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center p-4">
       <div className="fixed inset-0 gradient-bg opacity-10"></div>
-      
+
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -158,7 +181,7 @@ export default function Onboarding() {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            {[1, 2, 3, 4, 5].map((s) => (
+            {[1, 2, 3, 4].map((s) => (
               <div key={s} className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                   s < step ? 'bg-accent text-dark' :
@@ -167,8 +190,8 @@ export default function Onboarding() {
                 }`}>
                   {s < step ? <Check className="w-5 h-5" /> : s}
                 </div>
-                {s < 5 && (
-                  <div className={`w-12 h-1 mx-2 ${
+                {s < 4 && (
+                  <div className={`w-16 h-1 mx-2 ${
                     s < step ? 'bg-accent' : 'bg-white/10'
                   }`}></div>
                 )}
@@ -176,7 +199,7 @@ export default function Onboarding() {
             ))}
           </div>
           <p className="text-center text-gray-400 text-sm">
-            Étape {step} sur 5
+            Étape {step} sur 4
           </p>
         </div>
 
@@ -257,7 +280,7 @@ export default function Onboarding() {
                       type="tel"
                       value={formData.telephone}
                       onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
-                      placeholder="+33 6 12 34 56 78"
+                      placeholder="+32 4XX XX XX XX"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
                     />
                   </div>
@@ -270,7 +293,7 @@ export default function Onboarding() {
                       type="text"
                       value={formData.adresse}
                       onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
-                      placeholder="123 Rue de la Paix, Paris"
+                      placeholder="123 Rue de la Paix, Bruxelles"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
                     />
                   </div>
@@ -283,7 +306,7 @@ export default function Onboarding() {
                       type="email"
                       value={formData.email_contact}
                       onChange={(e) => setFormData({ ...formData, email_contact: e.target.value })}
-                      placeholder="contact@votresalon.fr"
+                      placeholder="contact@votresalon.be"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
                     />
                   </div>
@@ -365,7 +388,7 @@ export default function Onboarding() {
               </motion.div>
             )}
 
-            {/* ÉTAPE 4: TARIFS */}
+            {/* ÉTAPE 4: WHATSAPP EMBEDDED SIGNUP */}
             {step === 4 && (
               <motion.div
                 key="step4"
@@ -374,72 +397,74 @@ export default function Onboarding() {
                 exit={{ opacity: 0, x: -20 }}
               >
                 <h2 className="text-2xl font-bold text-white mb-6">
-                  💰 Vos tarifs
-                </h2>
-                <p className="text-gray-400 mb-6">
-                  Définissez vos principaux services et leurs prix
-                </p>
-
-                <div className="space-y-4">
-                  {getTarifsFields().map((service) => (
-                    <div key={service}>
-                      <label className="block text-white font-semibold mb-2">
-                        {service}
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.tarifs[service] || ''}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          tarifs: {
-                            ...formData.tarifs,
-                            [service]: e.target.value
-                          }
-                        })}
-                        placeholder="Ex: 25€"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* ÉTAPE 5: WHATSAPP */}
-            {step === 5 && (
-              <motion.div
-                key="step5"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <h2 className="text-2xl font-bold text-white mb-6">
                   📱 Connecter WhatsApp Business
                 </h2>
 
-                <div className="glass p-6 rounded-xl mb-6 border border-accent/30">
-                  <h3 className="text-lg font-bold text-white mb-4">
-                    📚 Comment obtenir votre Phone Number ID
-                  </h3>
-                  <ol className="space-y-2 text-gray-300 text-sm">
-                    <li>1. Va sur <a href="https://business.facebook.com" target="_blank" className="text-primary hover:underline">Meta Business Suite</a></li>
-                    <li>2. Crée un compte WhatsApp Business (gratuit)</li>
-                    <li>3. Va dans Paramètres → WhatsApp Business API</li>
-                    <li>4. Copie le Phone Number ID (série de chiffres)</li>
-                  </ol>
-                </div>
+                <div className="space-y-6">
+                  {/* Info box */}
+                  <div className="glass p-6 rounded-xl border border-primary/30">
+                    <div className="flex items-start gap-4">
+                      <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                      <div className="text-sm text-gray-300 space-y-2">
+                        <p className="font-semibold text-white">
+                          🚀 Configuration automatique en 2 minutes !
+                        </p>
+                        <p>
+                          En cliquant sur le bouton ci-dessous, vous allez être redirigé vers Meta (Facebook)
+                          pour connecter votre WhatsApp Business.
+                        </p>
+                        <p>
+                          <strong>Si vous n'avez pas encore de WhatsApp Business,</strong> Meta le créera
+                          automatiquement pour vous pendant le processus. C'est simple et rapide !
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-                <div>
-                  <label className="block text-white font-semibold mb-2">
-                    Phone Number ID *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.whatsapp_phone_number_id}
-                    onChange={(e) => setFormData({ ...formData, whatsapp_phone_number_id: e.target.value })}
-                    placeholder="938427616001036"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
-                  />
+                  {/* Bouton de connexion */}
+                  {!whatsappConnected ? (
+                    <button
+                      onClick={handleWhatsAppConnect}
+                      disabled={loading}
+                      className="w-full py-4 bg-gradient-to-r from-green-600 to-green-500 rounded-xl text-white font-semibold text-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader className="w-5 h-5 animate-spin" />
+                          Connexion en cours...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                          </svg>
+                          Connecter WhatsApp Business
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="glass p-6 rounded-xl border border-green-500/50 bg-green-500/10">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
+                          <Check className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-white font-semibold">WhatsApp connecté avec succès!</p>
+                          <p className="text-gray-300 text-sm">
+                            Votre compte WhatsApp Business est prêt à recevoir des messages.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Info tarifs */}
+                  <div className="glass p-4 rounded-xl bg-accent/5 border border-accent/20">
+                    <p className="text-sm text-gray-300 text-center">
+                      💡 <strong>Note:</strong> Vous pourrez configurer vos tarifs et offres spéciales
+                      directement dans le Menu Manager après l'inscription.
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -456,14 +481,14 @@ export default function Onboarding() {
               Retour
             </button>
 
-            {step < 5 ? (
+            {step < 4 ? (
               <button
                 onClick={handleNext}
                 disabled={
                   (step === 1 && !formData.sector) ||
                   (step === 2 && !formData.nom_entreprise)
                 }
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 Suivant
                 <ChevronRight className="w-5 h-5" />
@@ -471,8 +496,8 @@ export default function Onboarding() {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={loading || !formData.whatsapp_phone_number_id}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-primary text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading || !whatsappConnected}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-primary text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {loading ? (
                   <>
@@ -482,7 +507,7 @@ export default function Onboarding() {
                 ) : (
                   <>
                     <Check className="w-5 h-5" />
-                    Terminer
+                    Terminer la configuration
                   </>
                 )}
               </button>
