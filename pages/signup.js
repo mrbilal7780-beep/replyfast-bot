@@ -45,6 +45,9 @@ export default function Signup() {
       if (authError) throw authError;
 
       // 2. Créer le client dans la table clients
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14 jours d'essai
+
       const { error: insertError } = await supabase
         .from('clients')
         .insert([
@@ -52,15 +55,16 @@ export default function Signup() {
             email: formData.email,
             first_name: formData.firstName,
             last_name: formData.lastName,
-            subscription_status: 'trial',
+            subscription_status: 'trialing',
+            trial_ends_at: trialEndsAt.toISOString(),
             profile_completed: false
           }
         ]);
 
       if (insertError) throw insertError;
 
-      // Rediriger vers le dashboard (qui redirigera vers onboarding si profile_completed = false)
-      router.push('/dashboard');
+      // Rediriger vers onboarding
+      router.push('/onboarding');
     } catch (err) {
       setError(err.message);
       setLoading(false);
