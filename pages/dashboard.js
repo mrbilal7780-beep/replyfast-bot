@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, WifiOff, Calendar, TrendingUp, Upload } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, Edit2, Bot } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -12,19 +12,20 @@ const supabase = createClient(
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [userName, setUserName] = useState('');
   const [conversations, setConversations] = useState([]);
-  const [selectedSector, setSelectedSector] = useState('');
   const [stats, setStats] = useState({
     totalMessages: 0,
     activeConversations: 0,
-    responseRate: 0
+    responseRate: 'N/A'
   });
+  const [editingConv, setEditingConv] = useState(null);
+  const [newName, setNewName] = useState('');
 
   useEffect(() => {
     checkUser();
-    loadConversations();
-    
-    const interval = setInterval(loadConversations, 5000);
+    loadData();
+    const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -34,50 +35,76 @@ export default function Dashboard() {
       router.push('/login');
     } else {
       setUser(session.user);
+      loadUserName(session.user.email);
     }
   };
 
-  const loadConversations = async () => {
+  const loadUserName = async (email) => {
+    const { data: client } = await supabase
+      .from('clients')
+      .select('first_name, last_name, company_name')
+      .eq('email', email)
+      .single();
+
+    if (client) {
+      const name = client.first_name || client.company_name || 'Utilisateur';
+      setUserName(name);
+    }
+  };
+
+  const loadData = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session) {
-      const { data: clientData } = await supabase
-        .from('clients')
-        .select('sector')
-        .eq('email', session.user.email)
-        .single();
-      
-      if (clientData?.sector) {
-        setSelectedSector(clientData.sector);
+    if (!session) return;
+
+    const { data: convs } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('client_email', session.user.email)
+      .order('last_message_at', { ascending: false });
+
+    if (convs) {
+      setConversations(convs);
+
+      // Calcul du VRAI taux de réponse
+      const { data: receivedMsg } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('client_email', session.user.email)
+        .eq('direction', 'received');
+
+      const { data: sentMsg } = await supabase
+        .from('messages')
+        .select('id')
+        .eq('client_email', session.user.email)
+        .eq('direction', 'sent');
+
+      const received = receivedMsg?.length || 0;
+      const sent = sentMsg?.length || 0;
+
+      let rate = 'N/A';
+      if (received > 0) {
+        rate = Math.round((sent / received) * 100) + '%';
       }
 
-      const { data } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('client_email', session.user.email)
-        .order('last_message_at', { ascending: false });
-      
-      if (data) {
-        setConversations(data);
-        
-        const { data: allMessages } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', { in: data.map(c => c.id) });
-        
-        const totalMsgs = allMessages?.length || 0;
-        
-        setStats({
-          totalMessages: totalMsgs,
-          activeConversations: data.filter(c => c.status === 'active').length,
-          responseRate: 98
-        });
-      }
+      setStats({
+        totalMessages: received + sent,
+        activeConversations: convs.filter(c => c.status === 'active').length,
+        responseRate: rate
+      });
     }
   };
 
-  const handleConnectWhatsApp = () => {
-    router.push('/settings');
+  const handleRenameConversation = async (convId) => {
+    if (!newName.trim()) return;
+
+    await supabase
+      .from('conversations')
+      .update({ customer_name: newName })
+      .eq('id', convId);
+
+    setEditingConv(null);
+    setNewName('');
+    loadData();
   };
 
   const handleLogout = async () => {
@@ -87,24 +114,31 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
-      <div className="fixed inset-0">
+      {/* Fond dynamique avec particules interactives */}
+      <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
-        {[...Array(20)].map((_, i) => (
+        {[...Array(40)].map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-primary rounded-full"
+            className="absolute rounded-full"
             style={{
+              width: Math.random() * 3 + 1 + 'px',
+              height: Math.random() * 3 + 1 + 'px',
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
+              background: `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 100}, 255, ${Math.random() * 0.5 + 0.2})`
             }}
             animate={{
-              y: [0, -30, 0],
-              opacity: [0, 1, 0],
+              y: [0, -50, 0],
+              x: [0, Math.random() * 30 - 15, 0],
+              opacity: [0.2, 0.8, 0.2],
+              scale: [1, 1.5, 1],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: 5 + Math.random() * 5,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: Math.random() * 3,
+              ease: "easeInOut"
             }}
           />
         ))}
@@ -127,6 +161,7 @@ export default function Dashboard() {
             { icon: Users, label: 'Clients', path: '/clients' },
             { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
+            { icon: Bot, label: 'Assistant IA', path: '/ai-assistant' },
             { icon: Settings, label: 'Paramètres', path: '/settings' },
           ].map((item, i) => (
             <button
@@ -155,99 +190,126 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="ml-64 p-8 relative z-10">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2">
-            Bienvenue 👋
-          </h2>
-          <p className="text-gray-400">
-            Gérez vos conversations WhatsApp en temps réel
-          </p>
-        </div>
-
+        {/* Header avec prénom */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass p-6 rounded-3xl mb-8 border-2 border-accent/50"
+          className="mb-8"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
-                <WifiOff className="w-6 h-6 text-red-500" />
-              </div>
-              <div>
-                <h3 className="text-white font-semibold">WhatsApp non connecté</h3>
-                <p className="text-gray-400 text-sm">
-                  Connectez votre compte WhatsApp Business pour commencer
-                </p>
-              </div>
-            </div>
-            <button 
-              onClick={handleConnectWhatsApp}
-              className="px-6 py-3 bg-gradient-to-r from-primary to-secondary rounded-xl text-white font-semibold hover:scale-105 transition-transform"
-            >
-              Connecter WhatsApp
-            </button>
-          </div>
+          <h2 className="text-4xl font-bold text-white mb-2">
+            Bienvenue {userName} 👋
+          </h2>
+          <p className="text-gray-400">
+            Voici un aperçu de votre activité
+          </p>
         </motion.div>
 
+        {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-6 mb-8">
-          {[
-            { label: 'Messages envoyés', value: stats.totalMessages, icon: MessageSquare, color: 'primary' },
-            { label: 'Conversations actives', value: stats.activeConversations, icon: Users, color: 'secondary' },
-            { label: 'Taux de réponse', value: `${stats.responseRate}%`, icon: Zap, color: 'accent' },
-          ].map((stat, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="glass p-6 rounded-3xl hover:scale-105 transition-transform"
-            >
-              <div className={`w-12 h-12 rounded-full bg-${stat.color}/20 flex items-center justify-center mb-4`}>
-                <stat.icon className={`w-6 h-6 text-${stat.color}`} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.1 }}
+            className="glass p-6 rounded-2xl hover:scale-105 transition-transform group"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <MessageSquare className="w-6 h-6 text-primary" />
               </div>
-              <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>
-              <div className="text-gray-400 text-sm">{stat.label}</div>
-            </motion.div>
-          ))}
+            </div>
+            <p className="text-gray-400 text-sm mb-1">Messages totaux</p>
+            <p className="text-3xl font-bold text-white">{stats.totalMessages}</p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="glass p-6 rounded-2xl hover:scale-105 transition-transform group"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Users className="w-6 h-6 text-accent" />
+              </div>
+            </div>
+            <p className="text-gray-400 text-sm mb-1">Conversations actives</p>
+            <p className="text-3xl font-bold text-white">{stats.activeConversations}</p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+            className="glass p-6 rounded-2xl hover:scale-105 transition-transform group"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Zap className="w-6 h-6 text-secondary" />
+              </div>
+            </div>
+            <p className="text-gray-400 text-sm mb-1">Taux de réponse</p>
+            <p className="text-3xl font-bold text-white">{stats.responseRate}</p>
+          </motion.div>
         </div>
 
-        <div className="glass p-6 rounded-3xl">
-          <h3 className="text-xl font-bold text-white mb-6">Conversations récentes</h3>
-          
+        {/* Conversations List */}
+        <div className="glass p-6 rounded-2xl">
+          <h3 className="text-2xl font-bold text-white mb-6">Conversations récentes</h3>
+
           {conversations.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="w-10 h-10 text-gray-600" />
-              </div>
-              <p className="text-gray-400 mb-2">Aucune conversation pour le moment</p>
-              <p className="text-gray-500 text-sm">
-                Connectez WhatsApp pour commencer à recevoir des messages
-              </p>
+              <MessageSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-400">Aucune conversation pour le moment</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {conversations.map((conv, i) => (
-                <div
-                  key={i}
+            <div className="space-y-3">
+              {conversations.map((conv) => (
+                <motion.div
+                  key={conv.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
                   onClick={() => router.push(`/conversation/${conv.id}`)}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
                 >
-                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-white">{conv.customer_phone}</div>
-                    <div className="text-sm text-gray-400">
-                      {conv.last_message_at 
-                        ? `Dernière activité: ${new Date(conv.last_message_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-                        : 'Pas de message récent'}
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-white font-bold text-lg">
+                      {conv.customer_name
+                        ? conv.customer_name.charAt(0).toUpperCase()
+                        : '?'
+                      }
+                    </div>
+                    <div className="flex-1">
+                      {editingConv === conv.id ? (
+                        <input
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          onBlur={() => handleRenameConversation(conv.id)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleRenameConversation(conv.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-white focus:outline-none focus:border-primary w-full"
+                          autoFocus
+                          placeholder="Nom du client"
+                        />
+                      ) : (
+                        <p className="text-white font-semibold">
+                          {conv.customer_name || conv.customer_phone || 'Client'}
+                        </p>
+                      )}
+                      <p className="text-gray-400 text-sm">{conv.customer_phone}</p>
                     </div>
                   </div>
-                  <div className="text-gray-500 text-sm">
-                    {new Date(conv.created_at).toLocaleDateString()}
-                  </div>
-                </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingConv(conv.id);
+                      setNewName(conv.customer_name || '');
+                    }}
+                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </motion.div>
               ))}
             </div>
           )}
