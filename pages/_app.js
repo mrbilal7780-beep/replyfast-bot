@@ -11,6 +11,8 @@ function MyApp({ Component, pageProps }) {
   const [theme, setTheme] = useState('dark');
 
   useEffect(() => {
+    // S'assurer que le thème dark est appliqué dès le chargement
+    document.documentElement.setAttribute('data-theme', 'dark');
     loadTheme();
     initializeFacebookSDK();
   }, []);
@@ -28,7 +30,13 @@ function MyApp({ Component, pageProps }) {
       if (prefs?.theme) {
         setTheme(prefs.theme);
         document.documentElement.setAttribute('data-theme', prefs.theme);
+      } else {
+        // Par défaut, forcer le thème dark
+        document.documentElement.setAttribute('data-theme', 'dark');
       }
+    } else {
+      // Si pas de session, forcer le thème dark
+      document.documentElement.setAttribute('data-theme', 'dark');
     }
   };
 

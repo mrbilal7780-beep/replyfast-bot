@@ -118,11 +118,6 @@ export default function Onboarding() {
   };
 
   const handleSubmit = async () => {
-    if (!whatsappConnected) {
-      alert('⚠️ Veuillez connecter WhatsApp Business avant de continuer.');
-      return;
-    }
-
     setLoading(true);
     try {
       // 1. Sauvegarder dans clients
@@ -130,9 +125,9 @@ export default function Onboarding() {
         .from('clients')
         .update({
           sector: formData.sector,
-          whatsapp_phone_number_id: formData.whatsapp_phone_number_id,
-          waba_id: formData.waba_id,
-          whatsapp_connected: true,
+          whatsapp_phone_number_id: formData.whatsapp_phone_number_id || null,
+          waba_id: formData.waba_id || null,
+          whatsapp_connected: whatsappConnected,
           company_name: formData.nom_entreprise,
           profile_completed: true
         })
@@ -172,6 +167,16 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center p-4">
       <div className="fixed inset-0 gradient-bg opacity-10"></div>
+
+      {/* Bouton "Se connecter" en haut à droite */}
+      <div className="absolute top-6 right-6 z-20">
+        <button
+          onClick={() => router.push('/login')}
+          className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition-all border border-white/20"
+        >
+          Se connecter
+        </button>
+      </div>
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -417,6 +422,9 @@ export default function Onboarding() {
                           <strong>Si vous n'avez pas encore de WhatsApp Business,</strong> Meta le créera
                           automatiquement pour vous pendant le processus. C'est simple et rapide !
                         </p>
+                        <p className="text-accent font-semibold">
+                          💡 Vous avez déjà un compte ? Vous pouvez configurer WhatsApp plus tard dans les paramètres.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -496,7 +504,7 @@ export default function Onboarding() {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={loading || !whatsappConnected}
+                disabled={loading}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-primary text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {loading ? (
@@ -507,7 +515,7 @@ export default function Onboarding() {
                 ) : (
                   <>
                     <Check className="w-5 h-5" />
-                    Terminer la configuration
+                    {whatsappConnected ? 'Terminer la configuration' : 'Configurer WhatsApp plus tard'}
                   </>
                 )}
               </button>
