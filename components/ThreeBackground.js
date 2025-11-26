@@ -33,19 +33,19 @@ export default function ThreeBackground() {
       new THREE.MeshPhongMaterial({
         color: 0x6366f1,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.5,
         wireframe: true,
       }),
       new THREE.MeshPhongMaterial({
         color: 0x8b5cf6,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.5,
         wireframe: true,
       }),
       new THREE.MeshPhongMaterial({
-        color: 0x06b6d4,
+        color: 0x10b981,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.5,
         wireframe: true,
       }),
     ];
@@ -76,6 +76,55 @@ export default function ThreeBackground() {
       scene.add(building);
       buildings.push(building);
     }
+
+    // Créer le gratte-ciel principal avec le logo "ReplyFast AI"
+    const mainBuilding = new THREE.Mesh(
+      new THREE.BoxGeometry(4, 20, 4),
+      new THREE.MeshPhongMaterial({
+        color: 0x6366f1,
+        transparent: true,
+        opacity: 0.7,
+        wireframe: false,
+        emissive: 0x6366f1,
+        emissiveIntensity: 0.2,
+      })
+    );
+    mainBuilding.position.set(0, 0, -10);
+    mainBuilding.userData = {
+      initialHeight: 20,
+      targetHeight: 20,
+      currentHeight: 0,
+      buildSpeed: 0.03,
+    };
+    mainBuilding.scale.y = 0;
+    scene.add(mainBuilding);
+    buildings.push(mainBuilding);
+
+    // Créer un texte "RF" (ReplyFast) au sommet du building principal
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 256;
+    context.fillStyle = '#10b981';
+    context.font = 'bold 120px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('RF', 128, 128);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const logoMaterial = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.9,
+    });
+
+    // Panneau avec logo au sommet
+    const logoPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(3, 3),
+      logoMaterial
+    );
+    logoPlane.position.set(0, 12, -10);
+    scene.add(logoPlane);
 
     // Particules interactives
     const particleCount = 200;
@@ -211,7 +260,7 @@ export default function ThreeBackground() {
     <canvas
       ref={containerRef}
       className="fixed inset-0 z-0"
-      style={{ opacity: 0.4 }}
+      style={{ opacity: 0.7 }}
     />
   );
 }

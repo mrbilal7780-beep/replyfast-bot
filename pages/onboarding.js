@@ -80,7 +80,7 @@ export default function Onboarding() {
   // Meta Embedded Signup
   const handleWhatsAppConnect = () => {
     if (typeof window === 'undefined' || !window.FB) {
-      alert('❌ SDK Facebook non chargé. Veuillez actualiser la page et réessayer.');
+      alert('SDK Facebook non chargé. Veuillez actualiser la page et réessayer.');
       return;
     }
 
@@ -102,10 +102,10 @@ export default function Onboarding() {
         setLoading(false);
 
         // Message de succès
-        alert('✅ WhatsApp Business connecté avec succès!');
+        alert('WhatsApp Business connecté avec succès.');
       } else {
         setLoading(false);
-        alert('❌ Connexion annulée ou échouée. Réessayez.');
+        alert('Connexion annulée ou échouée. Réessayez.');
       }
     }, {
       scope: 'whatsapp_business_management,whatsapp_business_messaging',
@@ -159,7 +159,7 @@ export default function Onboarding() {
       router.push('/dashboard');
     } catch (error) {
       console.error('Erreur:', error);
-      alert('❌ Erreur lors de la configuration: ' + error.message);
+      alert('Erreur lors de la configuration: ' + error.message);
       setLoading(false);
     }
   };
@@ -222,7 +222,7 @@ export default function Onboarding() {
                 <div className="text-center mb-6">
                   <Sparkles className="w-12 h-12 text-primary mx-auto mb-4" />
                   <h2 className="text-3xl font-bold text-white mb-2">
-                    Bienvenue sur ReplyFast AI! 🎉
+                    Bienvenue sur ReplyFast AI
                   </h2>
                   <p className="text-gray-400">
                     Commençons par configurer votre secteur d'activité
@@ -260,7 +260,7 @@ export default function Onboarding() {
                 exit={{ opacity: 0, x: -20 }}
               >
                 <h2 className="text-2xl font-bold text-white mb-6">
-                  📋 Informations de votre entreprise
+                  Informations de votre entreprise
                 </h2>
 
                 <div className="space-y-4">
@@ -341,7 +341,7 @@ export default function Onboarding() {
                 exit={{ opacity: 0, x: -20 }}
               >
                 <h2 className="text-2xl font-bold text-white mb-6">
-                  🕐 Horaires d'ouverture
+                  Horaires d'ouverture
                 </h2>
 
                 <div className="space-y-3">
@@ -402,7 +402,7 @@ export default function Onboarding() {
                 exit={{ opacity: 0, x: -20 }}
               >
                 <h2 className="text-2xl font-bold text-white mb-6">
-                  📱 Connecter WhatsApp Business
+                  Connecter WhatsApp Business
                 </h2>
 
                 <div className="space-y-6">
@@ -412,7 +412,7 @@ export default function Onboarding() {
                       <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
                       <div className="text-sm text-gray-300 space-y-2">
                         <p className="font-semibold text-white">
-                          🚀 Configuration automatique en 2 minutes !
+                          Configuration automatique en 2 minutes
                         </p>
                         <p>
                           En cliquant sur le bouton ci-dessous, vous allez être redirigé vers Meta (Facebook)
@@ -420,10 +420,10 @@ export default function Onboarding() {
                         </p>
                         <p>
                           <strong>Si vous n'avez pas encore de WhatsApp Business,</strong> Meta le créera
-                          automatiquement pour vous pendant le processus. C'est simple et rapide !
+                          automatiquement pour vous pendant le processus. C'est simple et rapide.
                         </p>
                         <p className="text-accent font-semibold">
-                          💡 Vous avez déjà un compte ? Vous pouvez configurer WhatsApp plus tard dans les paramètres.
+                          Vous avez déjà un compte ? Vous pouvez configurer WhatsApp plus tard dans les paramètres.
                         </p>
                       </div>
                     </div>
@@ -469,7 +469,7 @@ export default function Onboarding() {
                   {/* Info tarifs */}
                   <div className="glass p-4 rounded-xl bg-accent/5 border border-accent/20">
                     <p className="text-sm text-gray-300 text-center">
-                      💡 <strong>Note:</strong> Vous pourrez configurer vos tarifs et offres spéciales
+                      <strong>Note:</strong> Vous pourrez configurer vos tarifs et offres spéciales
                       directement dans le Menu Manager après l'inscription.
                     </p>
                   </div>
