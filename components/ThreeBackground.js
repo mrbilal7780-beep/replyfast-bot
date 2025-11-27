@@ -147,27 +147,56 @@ export default function ThreeBackground() {
     particles.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
 
     const particleMaterial = new THREE.PointsMaterial({
-      color: 0x6366f1,
-      size: 0.2,
+      color: 0x10b981,
+      size: 0.4,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.8,
       blending: THREE.AdditiveBlending,
     });
 
     const particleSystem = new THREE.Points(particles, particleMaterial);
     scene.add(particleSystem);
 
-    // Lumières
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    // Ajouter des lueurs sphériques (glows) autour des bâtiments
+    const glowGeometry = new THREE.SphereGeometry(10, 32, 32);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x6366f1,
+      transparent: true,
+      opacity: 0.1,
+    });
+    const glow1 = new THREE.Mesh(glowGeometry, glowMaterial);
+    glow1.position.set(0, 5, -10);
+    scene.add(glow1);
+
+    const glow2Geometry = new THREE.SphereGeometry(8, 32, 32);
+    const glow2Material = new THREE.MeshBasicMaterial({
+      color: 0x10b981,
+      transparent: true,
+      opacity: 0.15,
+    });
+    const glow2 = new THREE.Mesh(glow2Geometry, glow2Material);
+    glow2.position.set(-15, 3, -15);
+    scene.add(glow2);
+
+    const glow3 = new THREE.Mesh(glow2Geometry.clone(), glow2Material.clone());
+    glow3.position.set(15, 4, -20);
+    scene.add(glow3);
+
+    // Lumières améliorées
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
-    const pointLight1 = new THREE.PointLight(0x6366f1, 1);
+    const pointLight1 = new THREE.PointLight(0x6366f1, 1.5);
     pointLight1.position.set(10, 10, 10);
     scene.add(pointLight1);
 
-    const pointLight2 = new THREE.PointLight(0x8b5cf6, 1);
+    const pointLight2 = new THREE.PointLight(0x10b981, 1.5);
     pointLight2.position.set(-10, -10, 10);
     scene.add(pointLight2);
+
+    const pointLight3 = new THREE.PointLight(0x8b5cf6, 1);
+    pointLight3.position.set(0, 15, -5);
+    scene.add(pointLight3);
 
     // Gestion du mouvement de la souris
     const handleMouseMove = (event) => {
