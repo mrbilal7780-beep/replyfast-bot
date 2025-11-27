@@ -120,8 +120,19 @@ export default function Onboarding() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      // Validation: vérifier que le secteur est bien défini
+      if (!formData.sector) {
+        throw new Error('Veuillez sélectionner un secteur d\'activité');
+      }
+
+      console.log('💾 Sauvegarde onboarding...', {
+        email: user.email,
+        sector: formData.sector,
+        company: formData.nom_entreprise
+      });
+
       // 1. Sauvegarder dans clients
-      await supabase
+      const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .update({
           sector: formData.sector,
@@ -131,10 +142,18 @@ export default function Onboarding() {
           company_name: formData.nom_entreprise,
           profile_completed: true
         })
-        .eq('email', user.email);
+        .eq('email', user.email)
+        .select();
+
+      if (clientError) {
+        console.error('❌ Erreur clients update:', clientError);
+        throw clientError;
+      }
+
+      console.log('✅ Client mis à jour:', clientData);
 
       // 2. Sauvegarder business_info
-      await supabase
+      const { data: businessData, error: businessError } = await supabase
         .from('business_info')
         .upsert({
           client_email: user.email,
@@ -145,20 +164,38 @@ export default function Onboarding() {
           description: formData.description,
           horaires: formData.horaires,
           tarifs: {} // Vide, sera rempli dans Menu Manager
-        });
+        })
+        .select();
+
+      if (businessError) {
+        console.error('❌ Erreur business_info upsert:', businessError);
+        throw businessError;
+      }
+
+      console.log('✅ Business info créé:', businessData);
 
       // 3. Créer préférences utilisateur
-      await supabase
+      const { data: prefsData, error: prefsError } = await supabase
         .from('user_preferences')
         .upsert({
           client_email: user.email,
+          user_email: user.email,
           theme: 'dark',
           language: 'fr'
-        });
+        })
+        .select();
+
+      if (prefsError) {
+        console.error('❌ Erreur user_preferences upsert:', prefsError);
+        throw prefsError;
+      }
+
+      console.log('✅ Préférences créées:', prefsData);
+      console.log('✅ Onboarding complété avec succès !');
 
       router.push('/dashboard');
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('❌ Erreur onboarding:', error);
       alert('Erreur lors de la configuration: ' + error.message);
       setLoading(false);
     }

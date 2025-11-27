@@ -101,7 +101,7 @@ export default function Home() {
             className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full mb-8"
           >
             <Sparkles className="w-4 h-4 text-accent" />
-            <span className="text-sm">Propulsé par GPT-4o-mini optimisé</span>
+            <span className="text-sm">Intelligence artificielle de nouvelle génération</span>
           </motion.div>
 
           {/* Title */}
@@ -136,7 +136,7 @@ export default function Home() {
           >
             <p className="mb-4">
               ReplyFast AI est la solution nouvelle génération qui révolutionne la gestion client.
-              Conçue avec les dernières technologies IA (GPT-4o-mini optimisé), notre plateforme
+              Conçue avec les dernières technologies d'intelligence artificielle, notre plateforme
               offre des performances maximales à un prix minimal.
             </p>
             <p className="mb-4">
@@ -206,7 +206,7 @@ export default function Home() {
             {
               icon: <Sparkles className="w-8 h-8" />,
               title: "IA Intelligente",
-              description: "GPT-4o-mini optimisé qui comprend le contexte et s'adapte à votre business."
+              description: "Intelligence artificielle avancée qui comprend le contexte et s'adapte à votre business."
             }
           ].map((feature, i) => (
             <motion.div
@@ -263,7 +263,7 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 gap-x-8 gap-y-3 mb-10">
             {[
-              "Réponses IA illimitées (GPT-4o-mini optimisé)",
+              "Réponses IA illimitées avec intelligence artificielle avancée",
               "Gestion automatique des rendez-vous avec calendrier intelligent",
               "Menu Manager avec apprentissage en temps réel",
               "Multi-secteurs (20+ activités supportées)",
@@ -317,7 +317,7 @@ export default function Home() {
                 ReplyFast AI
               </h3>
               <p className="text-gray-400 text-sm">
-                100% Made in Belgium 🇧🇪
+                Innovation et excellence
               </p>
             </div>
 
@@ -325,18 +325,18 @@ export default function Home() {
               <h4 className="text-white font-semibold mb-4">Légal</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
                 <li>
-                  <button className="hover:text-accent transition-colors">
+                  <button onClick={() => router.push('/cgv')} className="hover:text-accent transition-colors">
                     CGV
                   </button>
                 </li>
                 <li>
-                  <button className="hover:text-accent transition-colors">
+                  <button onClick={() => router.push('/privacy')} className="hover:text-accent transition-colors">
                     Politique de confidentialité
                   </button>
                 </li>
                 <li>
-                  <button className="hover:text-accent transition-colors">
-                    Protection des données (RGPD)
+                  <button onClick={() => router.push('/partners')} className="hover:text-accent transition-colors">
+                    Technologies partenaires
                   </button>
                 </li>
               </ul>
@@ -379,7 +379,7 @@ export default function Home() {
           </div>
 
           <div className="border-t border-white/10 pt-8 text-center text-gray-500 text-sm">
-            <p>Copyright © 2025 ReplyFast AI - 100% Made in Belgium 🇧🇪</p>
+            <p>Copyright © 2025 ReplyFast AI</p>
             <p className="mt-2">Tous droits réservés</p>
           </div>
         </div>
@@ -421,7 +421,7 @@ export default function Home() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white mb-1">Fondateur</h3>
-                    <p className="text-accent">100% Belge 🇧🇪</p>
+                    <p className="text-accent">Entrepreneur passionné</p>
                   </div>
                 </div>
 
@@ -460,7 +460,7 @@ export default function Home() {
                     </a>
                   </p>
                   <p className="mt-2">
-                    Nous sommes une équipe passionnée, basée en Belgique, dédiée à votre succès.
+                    Nous sommes une équipe passionnée dédiée à votre succès.
                   </p>
                 </div>
               </div>

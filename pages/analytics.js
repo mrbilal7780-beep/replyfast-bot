@@ -66,12 +66,17 @@ export default function Analytics() {
         .select('*')
         .eq('client_email', session.user.email);
 
-      // Charger business info pour les prix
-      const { data: businessInfo } = await supabase
+      // Charger business info pour les prix (gérer les duplicates)
+      const { data: businessInfo, error: businessInfoError } = await supabase
         .from('business_info')
         .select('*')
         .eq('client_email', session.user.email)
-        .single();
+        .limit(1)
+        .maybeSingle();
+
+      if (businessInfoError) {
+        console.warn('⚠️ Erreur business_info:', businessInfoError);
+      }
 
       // Stats de base
       const totalMessages = messages?.length || 0;
