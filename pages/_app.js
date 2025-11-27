@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import '../styles/globals.css';
+import '../styles/calendar.css';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
