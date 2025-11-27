@@ -54,8 +54,8 @@ export default function Appointments() {
         .from('appointments')
         .select('*')
         .eq('client_email', session.user.email)
-        .order('appointment_date', { ascending: true })
-        .order('appointment_time', { ascending: true });
+        .order('appointment_date', { ascending: false }) // RÉCENT EN HAUT
+        .order('appointment_time', { ascending: false });
 
       if (filter !== 'all') {
         query = query.eq('status', filter);

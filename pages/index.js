@@ -2,18 +2,13 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Zap, Shield, Sparkles, X, Check, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import dynamic from 'next/dynamic';
 
-// Import dynamique du background 3D (client-side only)
-const ThreeBackground = dynamic(() => import('../components/ThreeBackground'), {
+// Import dynamique du background Particules (client-side only)
+const ParticlesBackground = dynamic(() => import('../components/ParticlesBackground'), {
   ssr: false,
 });
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 export default function Home() {
   const router = useRouter();
@@ -48,9 +43,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-dark overflow-hidden">
-      {/* Fond 3D dynamique */}
-      <ThreeBackground />
+    <div className="min-h-screen overflow-hidden" style={{ backgroundColor: '#0a1628' }}>
+      {/* Fond Particules bleues */}
+      <ParticlesBackground />
 
       {/* Navbar - Responsive */}
       <nav className="relative z-10 flex justify-between items-center p-4 md:p-6 max-w-7xl mx-auto">
