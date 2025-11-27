@@ -2,13 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Save, Check, MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, User, Building, Palette, Mail, Phone, MapPin, Globe, Camera, Lock, CreditCard, FileText, Shield, ExternalLink, Bot } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { getSectorsList } from '../lib/sectors';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import MobileMenu from '../components/MobileMenu';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -266,18 +262,26 @@ export default function SettingsPage() {
   const handleSavePreferences = async () => {
     setLoading(true);
     try {
-      await supabase
+      const { error } = await supabase
         .from('user_preferences')
         .upsert({
           user_email: user.email,
+          client_email: user.email,
           ...preferences
         });
 
+      if (error) throw error;
+
+      // Appliquer le thème ET le sauvegarder dans localStorage
       document.documentElement.setAttribute('data-theme', preferences.theme);
+      document.documentElement.classList.remove('dark', 'light');
+      document.documentElement.classList.add(preferences.theme);
+      localStorage.setItem('replyfast_theme', preferences.theme);
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
+      console.error('❌ Erreur save preferences:', error);
       alert('Erreur: ' + error.message);
     }
     setLoading(false);
