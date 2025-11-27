@@ -1,20 +1,8 @@
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import ErrorBoundary from '../components/ErrorBoundary';
 import '../styles/globals.css';
 import '../styles/calendar.css';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    }
-  }
-);
 
 function MyApp({ Component, pageProps }) {
   const [theme, setTheme] = useState('dark');
@@ -30,27 +18,49 @@ function MyApp({ Component, pageProps }) {
   }, []);
 
   const loadTheme = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-    if (session) {
-      const { data: prefs } = await supabase
-        .from('user_preferences')
-        .select('theme')
-        .eq('user_email', session.user.email)
-        .single();
-
-      if (prefs?.theme) {
-        setTheme(prefs.theme);
-        document.documentElement.setAttribute('data-theme', prefs.theme);
-        localStorage.setItem('replyfast_theme', prefs.theme);
-      } else {
-        // Par défaut, forcer le thème dark et le sauvegarder
-        const defaultTheme = 'dark';
-        document.documentElement.setAttribute('data-theme', defaultTheme);
-        localStorage.setItem('replyfast_theme', defaultTheme);
+      if (sessionError) {
+        console.warn('⚠️ Erreur session:', sessionError);
+        // Utiliser le thème local en cas d'erreur
+        const savedTheme = localStorage.getItem('replyfast_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        setTheme(savedTheme);
+        return;
       }
-    } else {
-      // Si pas de session, utiliser le thème sauvegardé ou dark par défaut
+
+      if (session) {
+        const { data: prefs, error: prefsError } = await supabase
+          .from('user_preferences')
+          .select('theme')
+          .eq('user_email', session.user.email)
+          .limit(1)
+          .maybeSingle();
+
+        if (prefsError) {
+          console.warn('⚠️ Erreur user_preferences:', prefsError);
+        }
+
+        if (prefs?.theme) {
+          setTheme(prefs.theme);
+          document.documentElement.setAttribute('data-theme', prefs.theme);
+          localStorage.setItem('replyfast_theme', prefs.theme);
+        } else {
+          // Par défaut, forcer le thème dark et le sauvegarder
+          const defaultTheme = 'dark';
+          document.documentElement.setAttribute('data-theme', defaultTheme);
+          localStorage.setItem('replyfast_theme', defaultTheme);
+        }
+      } else {
+        // Si pas de session, utiliser le thème sauvegardé ou dark par défaut
+        const savedTheme = localStorage.getItem('replyfast_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        setTheme(savedTheme);
+      }
+    } catch (error) {
+      console.error('❌ Erreur loadTheme:', error);
+      // Fallback en cas d'erreur inattendue
       const savedTheme = localStorage.getItem('replyfast_theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
       setTheme(savedTheme);
@@ -73,7 +83,11 @@ function MyApp({ Component, pageProps }) {
     }
   };
 
-  return <Component {...pageProps} />;
+  return (
+    <ErrorBoundary>
+      <Component {...pageProps} />
+    </ErrorBoundary>
+  );
 }
 
 export default MyApp;
