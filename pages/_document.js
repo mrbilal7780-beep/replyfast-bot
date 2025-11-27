@@ -4,6 +4,18 @@ export default function Document() {
   return (
     <Html lang="fr">
       <Head>
+        {/* Force le thème dark IMMÉDIATEMENT avant React */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const theme = localStorage.getItem('replyfast_theme') || 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+              })();
+            `,
+          }}
+        />
+
         {/* Meta SDK pour WhatsApp Embedded Signup */}
         <script
           async
@@ -16,7 +28,7 @@ export default function Document() {
         <link rel="preconnect" href="https://connect.facebook.net" />
         <link rel="dns-prefetch" href="https://connect.facebook.net" />
       </Head>
-      <body>
+      <body className="dark">
         <Main />
         <NextScript />
       </body>
