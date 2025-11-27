@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, Edit2, Bot } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
+import MobileMenu from '../components/MobileMenu';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -114,6 +115,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
+      {/* Mobile Menu */}
+      <MobileMenu currentPath="/dashboard" />
+
       {/* Fond dynamique avec particules interactives */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
@@ -144,8 +148,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
+      {/* Sidebar - Hidden on mobile, visible on desktop */}
+      <div className="hidden lg:block fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             ReplyFast AI
@@ -188,24 +192,24 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Main Content */}
-      <div className="ml-64 p-8 relative z-10">
+      {/* Main Content - No margin on mobile, margin on desktop */}
+      <div className="lg:ml-64 p-4 lg:p-8 pt-20 lg:pt-8 relative z-10">
         {/* Header avec prénom */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-6 md:mb-8"
         >
-          <h2 className="text-4xl font-bold text-white mb-2">
+          <h2 className="text-2xl md:text-4xl font-bold text-white mb-2">
             Bienvenue {userName} 👋
           </h2>
-          <p className="text-gray-400">
+          <p className="text-sm md:text-base text-gray-400">
             Voici un aperçu de votre activité
           </p>
         </motion.div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-3 gap-6 mb-8">
+        {/* Stats Cards - 1 column on mobile, 3 on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -253,8 +257,8 @@ export default function Dashboard() {
         </div>
 
         {/* Conversations List */}
-        <div className="glass p-6 rounded-2xl">
-          <h3 className="text-2xl font-bold text-white mb-6">Conversations récentes</h3>
+        <div className="glass p-4 md:p-6 rounded-2xl">
+          <h3 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6">Conversations récentes</h3>
 
           {conversations.length === 0 ? (
             <div className="text-center py-12">
@@ -271,14 +275,14 @@ export default function Dashboard() {
                   className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer group"
                   onClick={() => router.push(`/conversation/${conv.id}`)}
                 >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-white font-bold text-lg">
+                  <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-white font-bold text-base md:text-lg flex-shrink-0">
                       {conv.customer_name
                         ? conv.customer_name.charAt(0).toUpperCase()
                         : '?'
                       }
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       {editingConv === conv.id ? (
                         <input
                           value={newName}
@@ -291,11 +295,11 @@ export default function Dashboard() {
                           placeholder="Nom du client"
                         />
                       ) : (
-                        <p className="text-white font-semibold">
+                        <p className="text-white font-semibold truncate">
                           {conv.customer_name || conv.customer_phone || 'Client'}
                         </p>
                       )}
-                      <p className="text-gray-400 text-sm">{conv.customer_phone}</p>
+                      <p className="text-gray-400 text-sm truncate">{conv.customer_phone}</p>
                     </div>
                   </div>
 
@@ -305,7 +309,7 @@ export default function Dashboard() {
                       setEditingConv(conv.id);
                       setNewName(conv.customer_name || '');
                     }}
-                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors opacity-60 md:opacity-0 md:group-hover:opacity-100 flex-shrink-0"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>

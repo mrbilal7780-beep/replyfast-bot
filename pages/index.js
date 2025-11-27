@@ -52,24 +52,24 @@ export default function Home() {
       {/* Fond 3D dynamique */}
       <ThreeBackground />
 
-      {/* Navbar */}
-      <nav className="relative z-10 flex justify-between items-center p-6 max-w-7xl mx-auto">
+      {/* Navbar - Responsive */}
+      <nav className="relative z-10 flex justify-between items-center p-4 md:p-6 max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="text-2xl font-bold"
+          className="text-xl md:text-2xl font-bold"
         >
           <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
             ReplyFast AI
           </span>
         </motion.div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <motion.button
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={() => setShowAboutModal(true)}
-            className="text-white hover:text-accent transition-colors"
+            className="text-white hover:text-accent transition-colors text-sm md:text-base"
           >
             À propos
           </motion.button>
@@ -79,15 +79,15 @@ export default function Home() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
             onClick={() => router.push('/login')}
-            className="glass px-6 py-2 rounded-full text-white hover:scale-105 transition-transform"
+            className="glass px-4 md:px-6 py-2 rounded-full text-white hover:scale-105 transition-transform text-sm md:text-base"
           >
             Se connecter
           </motion.button>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <div className="relative z-10 container mx-auto px-4 py-20">
+      {/* Hero Section - Optimized padding for mobile */}
+      <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
