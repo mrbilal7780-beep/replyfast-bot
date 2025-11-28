@@ -13,11 +13,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, userId } = req.body;
+    const { email, userId, plan = 'starter' } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
+
+    // Plans configuration
+    const plans = {
+      starter: {
+        name: 'ReplyFast AI - Plan Starter',
+        description: 'Idéal pour démarrer avec les fonctionnalités essentielles',
+        amount: 2900, // 29€ en centimes
+        interval: 'month'
+      },
+      pro: {
+        name: 'ReplyFast AI - Plan Pro',
+        description: 'Toutes les fonctionnalités + Analytics avancés',
+        amount: 7900, // 79€ en centimes
+        interval: 'month'
+      },
+      annual: {
+        name: 'ReplyFast AI - Plan Annuel',
+        description: 'Économisez 20% avec le paiement annuel',
+        amount: 69900, // 699€ en centimes (économie de ~250€/an)
+        interval: 'year'
+      }
+    };
+
+    const selectedPlan = plans[plan] || plans.starter;
 
     // Vérifier si le client existe déjà dans Stripe
     const customers = await stripe.customers.list({
@@ -29,11 +53,12 @@ export default async function handler(req, res) {
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
     } else {
-      // Créer un nouveau client Stripe
+      // Créer un nouveau client Stripe (pas de compte Stripe requis côté client)
       const customer = await stripe.customers.create({
         email: email,
         metadata: {
-          supabase_user_id: userId || email
+          supabase_user_id: userId || email,
+          plan: plan
         }
       });
       customerId = customer.id;
@@ -42,18 +67,18 @@ export default async function handler(req, res) {
     // Créer la session Stripe Checkout
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      payment_method_types: ['card'],
+      payment_method_types: ['card'], // Carte seulement - pas de compte Stripe requis
       line_items: [
         {
           price_data: {
             currency: 'eur',
             product_data: {
-              name: 'ReplyFast AI - Abonnement Mensuel',
-              description: 'Accès complet à ReplyFast AI avec toutes les fonctionnalités incluses',
+              name: selectedPlan.name,
+              description: selectedPlan.description,
             },
-            unit_amount: 1999, // 19.99€ en centimes
+            unit_amount: selectedPlan.amount,
             recurring: {
-              interval: 'month',
+              interval: selectedPlan.interval,
             },
           },
           quantity: 1,
@@ -64,12 +89,19 @@ export default async function handler(req, res) {
         trial_period_days: 14, // 14 jours d'essai gratuit
         metadata: {
           supabase_user_email: email,
+          plan: plan
         }
       },
       success_url: `${req.headers.origin}/subscription-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.origin}/dashboard`,
+      cancel_url: `${req.headers.origin}/payment?canceled=true`,
       metadata: {
         supabase_user_email: email,
+        plan: plan
+      },
+      allow_promotion_codes: true, // Permettre les codes promo
+      billing_address_collection: 'required', // Collecter l'adresse de facturation
+      customer_update: {
+        address: 'auto' // Mettre à jour l'adresse automatiquement
       }
     });
 
@@ -78,7 +110,8 @@ export default async function handler(req, res) {
       .from('clients')
       .update({
         stripe_customer_id: customerId,
-        subscription_status: 'trialing'
+        subscription_status: 'trialing',
+        subscription_plan: plan
       })
       .eq('email', email);
 

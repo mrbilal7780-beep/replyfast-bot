@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, CreditCard, DollarSign, CheckCircle, XCircle, Clock, Bot, Building, Save } from 'lucide-react';
+import {
+  MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp,
+  Upload, CreditCard, CheckCircle, XCircle, Clock, Bot, Star,
+  Sparkles, Shield, Loader, Check, Book
+} from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import MobileMenu from '../components/MobileMenu';
@@ -9,20 +13,81 @@ export default function Payment() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [subscription, setSubscription] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState({
-    type: 'iban',
-    iban: '',
-    holder_name: '',
-    stripe_customer_id: null
-  });
   const [paymentHistory, setPaymentHistory] = useState([]);
+
+  // Plans configuration
+  const plans = [
+    {
+      id: 'starter',
+      name: 'Starter',
+      price: 29,
+      interval: 'mois',
+      popular: false,
+      description: 'Idéal pour démarrer',
+      features: [
+        'Assistant IA 24/7',
+        'Jusqu\'à 100 conversations/mois',
+        'Gestion rendez-vous',
+        'Menu Manager basique',
+        'Analytics de base',
+        'Support email',
+        '14 jours d\'essai gratuit'
+      ]
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      price: 79,
+      interval: 'mois',
+      popular: true,
+      description: 'Le plus populaire',
+      features: [
+        '✨ Tout du plan Starter',
+        'Conversations illimitées',
+        'Analytics avancés + Géoloc',
+        'Menu Manager avec inventaire',
+        'Export données (CSV, PDF)',
+        'Multilingue (8 langues)',
+        'Support prioritaire',
+        'Intégrations API'
+      ]
+    },
+    {
+      id: 'annual',
+      name: 'Annuel',
+      price: 699,
+      interval: 'an',
+      popular: false,
+      savings: '20% d\'économie',
+      description: 'Meilleure valeur',
+      features: [
+        '✨ Tout du plan Pro',
+        '2 mois offerts (vs mensuel)',
+        'Économisez ~250€/an',
+        'Facturation annuelle',
+        'Accès anticipé nouvelles features',
+        'Onboarding personnalisé',
+        'Support premium 24/7',
+        'Compte manager dédié'
+      ]
+    }
+  ];
 
   useEffect(() => {
     checkUser();
     loadPaymentInfo();
-  }, []);
+
+    // Check for canceled payment
+    if (router.query.canceled === 'true') {
+      const timer = setTimeout(() => {
+        alert('❌ Paiement annulé. Vous pouvez réessayer quand vous voulez !');
+        router.replace('/payment', undefined, { shallow: true });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [router.query]);
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -38,22 +103,6 @@ export default function Payment() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-
-      // Charger les informations de paiement
-      const { data: paymentData } = await supabase
-        .from('payment_methods')
-        .select('*')
-        .eq('client_email', session.user.email)
-        .maybeSingle();
-
-      if (paymentData) {
-        setPaymentMethod({
-          type: paymentData.type || 'iban',
-          iban: paymentData.iban || '',
-          holder_name: paymentData.holder_name || '',
-          stripe_customer_id: paymentData.stripe_customer_id
-        });
-      }
 
       // Charger l'abonnement
       const { data: subData } = await supabase
@@ -83,77 +132,51 @@ export default function Payment() {
     setLoading(false);
   };
 
-  const handleSavePaymentMethod = async () => {
-    setSaving(true);
-    try {
-      // Valider l'IBAN (simple validation)
-      if (paymentMethod.type === 'iban') {
-        const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/;
-        const cleanIban = paymentMethod.iban.replace(/\s/g, '');
-
-        if (!ibanRegex.test(cleanIban)) {
-          alert('❌ IBAN invalide. Format attendu: FR76 XXXX XXXX XXXX XXXX XXXX XXX');
-          setSaving(false);
-          return;
-        }
-
-        if (!paymentMethod.holder_name.trim()) {
-          alert('❌ Veuillez entrer le nom du titulaire du compte');
-          setSaving(false);
-          return;
-        }
-      }
-
-      // Sauvegarder dans la base
-      const { data: existing } = await supabase
-        .from('payment_methods')
-        .select('*')
-        .eq('client_email', user.email)
-        .maybeSingle();
-
-      if (existing) {
-        const { error } = await supabase
-          .from('payment_methods')
-          .update({
-            type: paymentMethod.type,
-            iban: paymentMethod.iban.replace(/\s/g, ''),
-            holder_name: paymentMethod.holder_name,
-            updated_at: new Date().toISOString()
-          })
-          .eq('client_email', user.email);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('payment_methods')
-          .insert([{
-            client_email: user.email,
-            type: paymentMethod.type,
-            iban: paymentMethod.iban.replace(/\s/g, ''),
-            holder_name: paymentMethod.holder_name
-          }]);
-
-        if (error) throw error;
-      }
-
-      alert('✅ Méthode de paiement enregistrée avec succès !');
-    } catch (error) {
-      console.error('Error saving payment method:', error);
-      alert('❌ Erreur lors de l\'enregistrement');
+  const handleSubscribe = async (planId) => {
+    if (!user) {
+      alert('Vous devez être connecté pour souscrire');
+      router.push('/login');
+      return;
     }
-    setSaving(false);
+
+    setCheckoutLoading(planId);
+
+    try {
+      // Appeler l'API Stripe Checkout
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          userId: user.id,
+          plan: planId
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Rediriger vers Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert(`❌ Erreur: ${error.message}\n\nVérifiez que votre clé Stripe est configurée dans .env`);
+      setCheckoutLoading(null);
+    }
   };
 
-  const formatIban = (value) => {
-    // Formater l'IBAN avec des espaces tous les 4 caractères
-    const clean = value.replace(/\s/g, '').toUpperCase();
-    const formatted = clean.match(/.{1,4}/g)?.join(' ') || clean;
-    return formatted;
-  };
 
   const getStatusColor = (status) => {
     switch(status) {
       case 'active': return 'text-accent';
+      case 'trialing': return 'text-blue-400';
       case 'cancelled': return 'text-red-500';
       case 'expired': return 'text-gray-500';
       default: return 'text-gray-400';
@@ -163,8 +186,9 @@ export default function Payment() {
   const getStatusIcon = (status) => {
     switch(status) {
       case 'active': return CheckCircle;
+      case 'trialing': return Clock;
       case 'cancelled': return XCircle;
-      case 'expired': return Clock;
+      case 'expired': return XCircle;
       default: return Clock;
     }
   };
@@ -172,6 +196,7 @@ export default function Payment() {
   const getStatusLabel = (status) => {
     switch(status) {
       case 'active': return 'Actif';
+      case 'trialing': return 'Période d\'essai';
       case 'cancelled': return 'Annulé';
       case 'expired': return 'Expiré';
       case 'pending': return 'En attente';
@@ -226,6 +251,7 @@ export default function Payment() {
             { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
             { icon: Bot, label: 'Assistant IA', path: '/ai-assistant' },
+            { icon: Book, label: 'Guide d\'utilisation', path: '/tutorial' },
             { icon: CreditCard, label: 'Paiements', path: '/payment', active: true },
             { icon: Settings, label: 'Paramètres', path: '/settings' },
           ].map((item, i) => (
