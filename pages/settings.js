@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Check, MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, User, Building, Palette, Mail, Phone, MapPin, Globe, Camera, Lock, CreditCard, FileText, Shield, ExternalLink, Bot } from 'lucide-react';
+import { Save, Check, CheckCircle, MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, User, Building, Palette, Mail, Phone, MapPin, Globe, Camera, Lock, CreditCard, FileText, Shield, ExternalLink, Bot } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { getSectorsList } from '../lib/sectors';
@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profil');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Données profil
   const [profileData, setProfileData] = useState({
@@ -74,6 +75,14 @@ export default function SettingsPage() {
       document.documentElement.classList.add(savedTheme);
       setPreferences(prev => ({ ...prev, theme: savedTheme }));
     }
+
+    // Détecter mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const checkUser = async () => {
@@ -465,8 +474,11 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
+      {/* Mobile Menu */}
+      {isMobile && <MobileMenu />}
+
+      {/* Sidebar - Hidden on mobile */}
+      <div className="hidden md:block fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             ReplyFast AI
@@ -512,14 +524,14 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* Main Content */}
-      <div className="ml-64 p-8 relative z-10">
+      {/* Main Content - Responsive */}
+      <div className="ml-0 md:ml-64 p-4 md:p-8 relative z-10">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">
+          <div className="mb-6 md:mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
               ⚙️ Paramètres
             </h1>
-            <p className="text-gray-400">
+            <p className="text-gray-400 text-sm md:text-base">
               Gérez votre profil, entreprise, sécurité et paiements
             </p>
           </div>
@@ -536,25 +548,25 @@ export default function SettingsPage() {
             </motion.div>
           )}
 
-          {/* Tabs */}
+          {/* Tabs - Responsive */}
           <div className="flex gap-2 mb-6 glass p-2 rounded-xl overflow-x-auto">
             {[
               { id: 'profil', label: 'Profil', icon: User },
               { id: 'entreprise', label: 'Entreprise', icon: Building },
               { id: 'security', label: 'Sécurité', icon: Lock },
-              { icon: 'payment', label: 'Paiement', icon: CreditCard },
+              { id: 'payment', label: 'Paiement', icon: CreditCard },
               { id: 'apparence', label: 'Apparence', icon: Palette }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all whitespace-nowrap ${
+                className={`flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-3 rounded-lg transition-all whitespace-nowrap text-sm md:text-base ${
                   activeTab === tab.id
                     ? 'bg-primary text-white'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <tab.icon className="w-5 h-5" />
+                <tab.icon className="w-4 h-4 md:w-5 md:h-5" />
                 <span className="font-semibold">{tab.label}</span>
               </button>
             ))}
