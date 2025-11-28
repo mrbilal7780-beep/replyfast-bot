@@ -13,35 +13,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, userId, plan = 'starter' } = req.body;
+    const { email, userId } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Plans configuration
-    const plans = {
-      starter: {
-        name: 'ReplyFast AI - Plan Starter',
-        description: 'Idéal pour démarrer avec les fonctionnalités essentielles',
-        amount: 2900, // 29€ en centimes
-        interval: 'month'
-      },
-      pro: {
-        name: 'ReplyFast AI - Plan Pro',
-        description: 'Toutes les fonctionnalités + Analytics avancés',
-        amount: 7900, // 79€ en centimes
-        interval: 'month'
-      },
-      annual: {
-        name: 'ReplyFast AI - Plan Annuel',
-        description: 'Économisez 20% avec le paiement annuel',
-        amount: 69900, // 699€ en centimes (économie de ~250€/an)
-        interval: 'year'
-      }
+    // Configuration du plan unique
+    const planConfig = {
+      name: 'ReplyFast AI - Abonnement Mensuel',
+      description: 'Accès complet à toutes les fonctionnalités ReplyFast AI',
+      amount: 2900, // 29€ en centimes
+      interval: 'month'
     };
-
-    const selectedPlan = plans[plan] || plans.starter;
 
     // Vérifier si le client existe déjà dans Stripe
     const customers = await stripe.customers.list({
@@ -57,8 +41,7 @@ export default async function handler(req, res) {
       const customer = await stripe.customers.create({
         email: email,
         metadata: {
-          supabase_user_id: userId || email,
-          plan: plan
+          supabase_user_id: userId || email
         }
       });
       customerId = customer.id;
@@ -73,12 +56,12 @@ export default async function handler(req, res) {
           price_data: {
             currency: 'eur',
             product_data: {
-              name: selectedPlan.name,
-              description: selectedPlan.description,
+              name: planConfig.name,
+              description: planConfig.description,
             },
-            unit_amount: selectedPlan.amount,
+            unit_amount: planConfig.amount,
             recurring: {
-              interval: selectedPlan.interval,
+              interval: planConfig.interval,
             },
           },
           quantity: 1,
@@ -88,15 +71,13 @@ export default async function handler(req, res) {
       subscription_data: {
         trial_period_days: 14, // 14 jours d'essai gratuit
         metadata: {
-          supabase_user_email: email,
-          plan: plan
+          supabase_user_email: email
         }
       },
       success_url: `${req.headers.origin}/subscription-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin}/payment?canceled=true`,
       metadata: {
-        supabase_user_email: email,
-        plan: plan
+        supabase_user_email: email
       },
       allow_promotion_codes: true, // Permettre les codes promo
       billing_address_collection: 'required', // Collecter l'adresse de facturation
@@ -110,8 +91,7 @@ export default async function handler(req, res) {
       .from('clients')
       .update({
         stripe_customer_id: customerId,
-        subscription_status: 'trialing',
-        subscription_plan: plan
+        subscription_status: 'trialing'
       })
       .eq('email', email);
 

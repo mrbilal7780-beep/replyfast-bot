@@ -17,63 +17,6 @@ export default function Payment() {
   const [subscription, setSubscription] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
 
-  // Plans configuration
-  const plans = [
-    {
-      id: 'starter',
-      name: 'Starter',
-      price: 29,
-      interval: 'mois',
-      popular: false,
-      description: 'Idéal pour démarrer',
-      features: [
-        'Assistant IA 24/7',
-        'Jusqu\'à 100 conversations/mois',
-        'Gestion rendez-vous',
-        'Menu Manager basique',
-        'Analytics de base',
-        'Support email',
-        '14 jours d\'essai gratuit'
-      ]
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
-      price: 79,
-      interval: 'mois',
-      popular: true,
-      description: 'Le plus populaire',
-      features: [
-        '✨ Tout du plan Starter',
-        'Conversations illimitées',
-        'Analytics avancés + Géoloc',
-        'Menu Manager avec inventaire',
-        'Export données (CSV, PDF)',
-        'Multilingue (8 langues)',
-        'Support prioritaire',
-        'Intégrations API'
-      ]
-    },
-    {
-      id: 'annual',
-      name: 'Annuel',
-      price: 699,
-      interval: 'an',
-      popular: false,
-      savings: '20% d\'économie',
-      description: 'Meilleure valeur',
-      features: [
-        '✨ Tout du plan Pro',
-        '2 mois offerts (vs mensuel)',
-        'Économisez ~250€/an',
-        'Facturation annuelle',
-        'Accès anticipé nouvelles features',
-        'Onboarding personnalisé',
-        'Support premium 24/7',
-        'Compte manager dédié'
-      ]
-    }
-  ];
 
   useEffect(() => {
     checkUser();
@@ -132,14 +75,14 @@ export default function Payment() {
     setLoading(false);
   };
 
-  const handleSubscribe = async (planId) => {
+  const handleSubscribe = async () => {
     if (!user) {
       alert('Vous devez être connecté pour souscrire');
       router.push('/login');
       return;
     }
 
-    setCheckoutLoading(planId);
+    setCheckoutLoading(true);
 
     try {
       // Appeler l'API Stripe Checkout
@@ -150,8 +93,7 @@ export default function Payment() {
         },
         body: JSON.stringify({
           email: user.email,
-          userId: user.id,
-          plan: planId
+          userId: user.id
         })
       });
 
@@ -168,7 +110,7 @@ export default function Payment() {
     } catch (error) {
       console.error('Checkout error:', error);
       alert(`❌ Erreur: ${error.message}\n\nVérifiez que votre clé Stripe est configurée dans .env`);
-      setCheckoutLoading(null);
+      setCheckoutLoading(false);
     }
   };
 
