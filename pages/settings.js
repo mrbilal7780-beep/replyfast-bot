@@ -239,7 +239,24 @@ export default function SettingsPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    // Charger données client
+    // FALLBACK: Charger depuis localStorage d'abord (instantané)
+    try {
+      const cachedProfile = localStorage.getItem('replyfast_profile');
+      if (cachedProfile) {
+        const profile = JSON.parse(cachedProfile);
+        if (profile.email === session.user.email) {
+          setProfileData(prev => ({
+            ...prev,
+            nom_complet: profile.nom_complet || '',
+            telephone: profile.telephone || ''
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Erreur chargement localStorage profile:', e);
+    }
+
+    // Charger données client depuis la DB (écrase le cache si disponible)
     const { data: client, error: clientError } = await supabase
       .from('clients')
       .select('*')
@@ -251,6 +268,22 @@ export default function SettingsPage() {
     }
 
     if (client) {
+      // Charger les données personnelles dans profileData
+      const fullName = [client.first_name, client.last_name].filter(Boolean).join(' ');
+      setProfileData(prev => ({
+        ...prev,
+        nom_complet: fullName || '',
+        telephone: client.phone || ''
+      }));
+
+      // Sauvegarder dans localStorage pour la prochaine fois
+      localStorage.setItem('replyfast_profile', JSON.stringify({
+        nom_complet: fullName,
+        telephone: client.phone || '',
+        email: session.user.email
+      }));
+
+      // Charger les données business
       setBusinessData({
         ...businessData,
         sector: client.sector || '',
@@ -264,7 +297,23 @@ export default function SettingsPage() {
       }
     }
 
-    // Charger business_info
+    // FALLBACK: Charger business depuis localStorage d'abord
+    try {
+      const cachedBusiness = localStorage.getItem('replyfast_business');
+      if (cachedBusiness) {
+        const business = JSON.parse(cachedBusiness);
+        if (business.email === session.user.email) {
+          setBusinessData(prev => ({
+            ...prev,
+            ...business
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Erreur chargement localStorage business:', e);
+    }
+
+    // Charger business_info depuis la DB (écrase le cache si disponible)
     const { data: businessInfo, error: businessError } = await supabase
       .from('business_info')
       .select('*')
@@ -276,19 +325,46 @@ export default function SettingsPage() {
     }
 
     if (businessInfo) {
-      setBusinessData(prev => ({
-        ...prev,
-        nom_entreprise: businessInfo.nom_entreprise || prev.nom_entreprise,
+      const updatedBusinessData = {
+        ...businessData,
+        nom_entreprise: businessInfo.nom_entreprise || businessData.nom_entreprise,
         adresse: businessInfo.adresse || '',
         email_contact: businessInfo.email_contact || '',
         site_web: businessInfo.site_web || '',
         description: businessInfo.description || '',
         horaires: businessInfo.horaires || {},
         tarifs: businessInfo.tarifs || {}
+      };
+
+      setBusinessData(updatedBusinessData);
+
+      // Sauvegarder dans localStorage pour la prochaine fois
+      localStorage.setItem('replyfast_business', JSON.stringify({
+        ...updatedBusinessData,
+        email: session.user.email
       }));
     }
 
-    // Charger préférences
+    // FALLBACK: Charger préférences depuis localStorage d'abord
+    try {
+      const cachedPrefs = localStorage.getItem('replyfast_preferences');
+      if (cachedPrefs) {
+        const prefs = JSON.parse(cachedPrefs);
+        if (prefs.email === session.user.email) {
+          setPreferences({
+            theme: prefs.theme || 'dark',
+            notifications_email: prefs.notifications_email ?? true,
+            notifications_rdv: prefs.notifications_rdv ?? true,
+            notifications_nouveaux_clients: prefs.notifications_nouveaux_clients ?? true,
+            langue: prefs.langue || 'fr'
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Erreur chargement localStorage préférences:', e);
+    }
+
+    // Charger préférences depuis la DB (écrase le cache si disponible)
     const { data: prefs, error: prefsError } = await supabase
       .from('user_preferences')
       .select('*')
@@ -300,13 +376,21 @@ export default function SettingsPage() {
     }
 
     if (prefs) {
-      setPreferences({
+      const updatedPrefs = {
         theme: prefs.theme || 'dark',
         notifications_email: prefs.notifications_email ?? true,
         notifications_rdv: prefs.notifications_rdv ?? true,
         notifications_nouveaux_clients: prefs.notifications_nouveaux_clients ?? true,
         langue: prefs.langue || 'fr'
-      });
+      };
+
+      setPreferences(updatedPrefs);
+
+      // Sauvegarder dans localStorage pour la prochaine fois
+      localStorage.setItem('replyfast_preferences', JSON.stringify({
+        ...updatedPrefs,
+        email: session.user.email
+      }));
 
       // Charger 2FA status si existe
       if (prefs.two_factor_enabled !== undefined) {
@@ -388,8 +472,8 @@ export default function SettingsPage() {
   const handleSaveProfil = async () => {
     setLoading(true);
     try {
-      // Sauvegarder nom et téléphone dans clients
-      await supabase
+      // Sauvegarder nom et téléphone dans clients (DB)
+      const { error } = await supabase
         .from('clients')
         .update({
           first_name: profileData.nom_complet.split(' ')[0],
@@ -397,6 +481,15 @@ export default function SettingsPage() {
           phone: profileData.telephone
         })
         .eq('email', user.email);
+
+      if (error) throw error;
+
+      // Sauvegarder AUSSI en localStorage pour persistance en session (backup)
+      localStorage.setItem('replyfast_profile', JSON.stringify({
+        nom_complet: profileData.nom_complet,
+        telephone: profileData.telephone,
+        email: user.email
+      }));
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -409,7 +502,7 @@ export default function SettingsPage() {
   const handleSaveBusiness = async () => {
     setLoading(true);
     try {
-      await supabase
+      const { error: clientError } = await supabase
         .from('clients')
         .upsert({
           email: user.email,
@@ -420,7 +513,9 @@ export default function SettingsPage() {
           profile_completed: true
         });
 
-      await supabase
+      if (clientError) throw clientError;
+
+      const { error: businessError } = await supabase
         .from('business_info')
         .upsert({
           client_email: user.email,
@@ -432,6 +527,14 @@ export default function SettingsPage() {
           horaires: businessData.horaires,
           tarifs: businessData.tarifs
         });
+
+      if (businessError) throw businessError;
+
+      // Sauvegarder AUSSI en localStorage pour persistance en session
+      localStorage.setItem('replyfast_business', JSON.stringify({
+        ...businessData,
+        email: user.email
+      }));
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -457,7 +560,15 @@ export default function SettingsPage() {
       document.documentElement.setAttribute('data-theme', preferences.theme);
       document.documentElement.classList.remove('dark', 'light');
       document.documentElement.classList.add(preferences.theme);
+      document.body.classList.remove('dark', 'light');
+      document.body.classList.add(preferences.theme);
       localStorage.setItem('replyfast_theme', preferences.theme);
+
+      // Sauvegarder TOUTES les préférences en localStorage pour persistance
+      localStorage.setItem('replyfast_preferences', JSON.stringify({
+        ...preferences,
+        email: user.email
+      }));
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);

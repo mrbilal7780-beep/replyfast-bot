@@ -6,14 +6,30 @@ import '../styles/globals.css';
 import '../styles/calendar.css';
 
 function MyApp({ Component, pageProps }) {
-  const [theme, setTheme] = useState('dark');
+  // Charger le thème IMMÉDIATEMENT depuis localStorage (avant tout render)
+  const getInitialTheme = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('replyfast_theme') || 'dark';
+    }
+    return 'dark';
+  };
 
+  const [theme, setTheme] = useState(getInitialTheme);
+
+  // Appliquer le thème IMMÉDIATEMENT au montage (synchrone)
   useEffect(() => {
-    // Charger le thème depuis localStorage ou par défaut dark
     const savedTheme = localStorage.getItem('replyfast_theme') || 'dark';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
 
+    // Appliquer TOUS les attributs pour garantir la cohérence
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.add(savedTheme);
+    document.body.classList.remove('dark', 'light');
+    document.body.classList.add(savedTheme);
+
+    setTheme(savedTheme);
+
+    // Charger les préférences utilisateur depuis la DB (asynchrone)
     loadTheme();
     initializeFacebookSDK();
   }, []);
