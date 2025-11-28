@@ -2,13 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Check, Loader, Sparkles, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
 import { getSectorsList } from '../lib/sectors';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '../lib/supabase';
 
 export default function Onboarding() {
   const router = useRouter();
@@ -50,22 +45,30 @@ export default function Onboarding() {
   }, []);
 
   const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      router.push('/login');
-    } else {
-      setUser(session.user);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+      } else {
+        setUser(session.user);
 
-      // Vérifier si déjà configuré
-      const { data: client } = await supabase
-        .from('clients')
-        .select('profile_completed')
-        .eq('email', session.user.email)
-        .single();
+        // Vérifier si déjà configuré
+        const { data: client, error } = await supabase
+          .from('clients')
+          .select('profile_completed')
+          .eq('email', session.user.email)
+          .maybeSingle();
 
-      if (client?.profile_completed) {
-        router.push('/dashboard');
+        if (error) {
+          console.error('Erreur checkUser onboarding:', error);
+        }
+
+        if (client?.profile_completed) {
+          router.push('/dashboard');
+        }
       }
+    } catch (error) {
+      console.error('Erreur dans checkUser:', error);
     }
   };
 

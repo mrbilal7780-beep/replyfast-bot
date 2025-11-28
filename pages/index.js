@@ -33,19 +33,28 @@ export default function Home() {
   }, []);
 
   const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const { data: client } = await supabase
-        .from('clients')
-        .select('profile_completed')
-        .eq('email', session.user.email)
-        .single();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: client, error } = await supabase
+          .from('clients')
+          .select('profile_completed')
+          .eq('email', session.user.email)
+          .maybeSingle();
 
-      if (client?.profile_completed) {
-        router.push('/dashboard');
-      } else {
-        router.push('/onboarding');
+        if (error) {
+          console.error('Erreur checkUser:', error);
+          return;
+        }
+
+        if (client?.profile_completed) {
+          router.push('/dashboard');
+        } else {
+          router.push('/onboarding');
+        }
       }
+    } catch (error) {
+      console.error('Erreur dans checkUser:', error);
     }
   };
 

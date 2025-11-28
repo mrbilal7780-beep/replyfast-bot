@@ -36,15 +36,23 @@ export default function Dashboard() {
   };
 
   const loadUserName = async (email) => {
-    const { data: client } = await supabase
-      .from('clients')
-      .select('first_name, last_name, company_name')
-      .eq('email', email)
-      .single();
+    try {
+      const { data: client, error } = await supabase
+        .from('clients')
+        .select('first_name, last_name, company_name')
+        .eq('email', email)
+        .maybeSingle();
 
-    if (client) {
-      const name = client.first_name || client.company_name || 'Utilisateur';
-      setUserName(name);
+      if (error) {
+        console.error('Erreur loadUserName:', error);
+      }
+
+      if (client) {
+        const name = client.first_name || client.company_name || 'Utilisateur';
+        setUserName(name);
+      }
+    } catch (error) {
+      console.error('Erreur dans loadUserName:', error);
     }
   };
 
