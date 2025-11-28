@@ -502,6 +502,26 @@ export default function SettingsPage() {
   const handleSaveBusiness = async () => {
     setLoading(true);
     try {
+      // VÉRIFICATION UNICITÉ: Vérifier si le WhatsApp Phone ID n'est pas déjà utilisé
+      if (businessData.whatsapp_phone_number_id) {
+        const { data: existingClient, error: checkError } = await supabase
+          .from('clients')
+          .select('email, company_name')
+          .eq('whatsapp_phone_number_id', businessData.whatsapp_phone_number_id)
+          .maybeSingle();
+
+        if (checkError) {
+          console.warn('⚠️ Erreur vérification WhatsApp ID:', checkError);
+        }
+
+        // Si un autre client utilise déjà ce Phone ID (pas le même email)
+        if (existingClient && existingClient.email !== user.email) {
+          alert(`❌ Ce Phone Number ID WhatsApp est déjà utilisé par un autre compte (${existingClient.company_name || existingClient.email}).\n\nChaque Phone Number ID ne peut être utilisé que par un seul compte ReplyFast.`);
+          setLoading(false);
+          return; // Stop l'exécution
+        }
+      }
+
       const { error: clientError } = await supabase
         .from('clients')
         .upsert({
