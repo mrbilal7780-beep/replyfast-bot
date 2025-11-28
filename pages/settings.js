@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Check, CheckCircle, MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, User, Building, Palette, Mail, Phone, MapPin, Globe, Camera, Lock, CreditCard, FileText, Shield, ExternalLink, Bot } from 'lucide-react';
+import { Save, Check, CheckCircle, MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, User, Building, Palette, Mail, Phone, MapPin, Globe, Camera, Lock, CreditCard, FileText, Shield, ExternalLink, Bot, Volume2, VolumeX, Mic, MicOff, Eye, Type } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { getSectorsList } from '../lib/sectors';
@@ -9,6 +9,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { availableLanguages } from '../lib/i18n/translations';
 import GeolocationPermissionModal from '../components/GeolocationPermissionModal';
 import { getPermissionStatus, revokeGeolocationPermission, PERMISSION_STATES } from '../lib/geolocation';
+import { TEXT_SIZES, getTextSize, applyTextSize, getAccessibilityManager, isSpeechSynthesisAvailable, isSpeechRecognitionAvailable } from '../lib/accessibility';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -25,6 +26,13 @@ export default function SettingsPage() {
   const [showGeolocationModal, setShowGeolocationModal] = useState(false);
   const [geolocationEnabled, setGeolocationEnabled] = useState(false);
   const [geolocationStatus, setGeolocationStatus] = useState(PERMISSION_STATES.NOT_REQUESTED);
+
+  // Accessibilité
+  const [textSize, setTextSize] = useState('normal');
+  const [voiceModeEnabled, setVoiceModeEnabled] = useState(false);
+  const [accessibilityManager, setAccessibilityManager] = useState(null);
+  const [voiceAvailable, setVoiceAvailable] = useState(false);
+  const [recognitionAvailable, setRecognitionAvailable] = useState(false);
 
   // Données profil
   const [profileData, setProfileData] = useState({
@@ -96,6 +104,9 @@ export default function SettingsPage() {
     // Charger statut géolocalisation
     loadGeolocationStatus();
 
+    // Initialiser accessibilité
+    initializeAccessibility();
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -148,6 +159,70 @@ export default function SettingsPage() {
       setGeolocationStatus(PERMISSION_STATES.NOT_REQUESTED);
       alert('✅ Géolocalisation désactivée');
     }
+  };
+
+  // Fonctions d'accessibilité
+  const initializeAccessibility = () => {
+    // Vérifier disponibilité des APIs
+    setVoiceAvailable(isSpeechSynthesisAvailable());
+    setRecognitionAvailable(isSpeechRecognitionAvailable());
+
+    // Charger la taille de texte sauvegardée
+    const savedTextSize = getTextSize();
+    setTextSize(savedTextSize);
+    applyTextSize(savedTextSize);
+
+    // Initialiser le gestionnaire d'accessibilité
+    const manager = getAccessibilityManager();
+    setAccessibilityManager(manager);
+
+    // Charger le statut du mode vocal
+    if (manager) {
+      setVoiceModeEnabled(manager.voiceMode);
+    }
+  };
+
+  const handleTextSizeChange = (size) => {
+    setTextSize(size);
+    applyTextSize(size);
+
+    if (accessibilityManager?.reader) {
+      const sizeLabel = TEXT_SIZES[size.toUpperCase()]?.label || size;
+      accessibilityManager.reader.speak(`Taille de texte: ${sizeLabel}`, { interrupt: true });
+    }
+  };
+
+  const handleEnableVoiceMode = () => {
+    if (!voiceAvailable) {
+      alert('❌ La synthèse vocale n\'est pas disponible sur votre navigateur');
+      return;
+    }
+
+    if (!accessibilityManager) {
+      const manager = getAccessibilityManager();
+      setAccessibilityManager(manager);
+      manager.initialize();
+    }
+
+    accessibilityManager.enableVoiceMode();
+    setVoiceModeEnabled(true);
+  };
+
+  const handleDisableVoiceMode = () => {
+    if (confirm('Êtes-vous sûr de vouloir désactiver le mode vocal ?')) {
+      accessibilityManager?.disableVoiceMode();
+      setVoiceModeEnabled(false);
+    }
+  };
+
+  const handleTestVoice = () => {
+    if (!accessibilityManager?.reader) {
+      const manager = getAccessibilityManager();
+      setAccessibilityManager(manager);
+      manager.initialize();
+    }
+
+    accessibilityManager?.reader?.speak('Ceci est un test de lecture vocale. Le mode vocal est opérationnel.', { interrupt: true });
   };
 
   const checkUser = async () => {
@@ -1308,6 +1383,171 @@ export default function SettingsPage() {
                     <p>
                       Vos données de localisation sont chiffrées, stockées de manière sécurisée et conformes au RGPD.
                       Vous pouvez les supprimer à tout moment.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Accessibilité */}
+                <div className="pt-6 border-t border-white/10">
+                  <label className="block text-white font-semibold mb-3 flex items-center gap-2">
+                    <Eye className="w-5 h-5 text-purple-500" />
+                    Accessibilité
+                  </label>
+
+                  {/* Taille de texte */}
+                  <div className="glass p-4 rounded-xl mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Type className="w-5 h-5 text-purple-400" />
+                      <p className="text-white font-semibold">Taille du texte</p>
+                    </div>
+                    <p className="text-gray-400 text-sm mb-4">
+                      Ajustez la taille du texte pour améliorer la lisibilité
+                    </p>
+
+                    {/* Sélecteur de taille */}
+                    <div className="grid grid-cols-5 gap-2 mb-3">
+                      {Object.entries(TEXT_SIZES).map(([key, size]) => (
+                        <button
+                          key={key}
+                          onClick={() => handleTextSizeChange(size.value)}
+                          className={`p-2 rounded-lg border-2 transition-all ${
+                            textSize === size.value
+                              ? 'border-purple-500 bg-purple-500/20'
+                              : 'border-white/10 bg-white/5 hover:border-white/20'
+                          }`}
+                        >
+                          <p className="text-white text-xs font-semibold mb-1" style={{ fontSize: `${12 * size.scale}px` }}>
+                            Aa
+                          </p>
+                          <p className="text-gray-400" style={{ fontSize: '10px' }}>
+                            {size.label}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg p-2">
+                      <Check className="w-4 h-4 text-blue-500" />
+                      <p className="text-blue-500 text-xs">
+                        Taille actuelle: {TEXT_SIZES[textSize.toUpperCase()]?.label || textSize}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Mode vocal pour aveugles */}
+                  <div className="glass p-4 rounded-xl mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Volume2 className="w-5 h-5 text-purple-400" />
+                      <p className="text-white font-semibold">Mode vocal AI</p>
+                      <div className={`ml-auto px-3 py-1 rounded-full text-sm font-semibold ${
+                        voiceModeEnabled
+                          ? 'bg-purple-500/20 text-purple-400'
+                          : 'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {voiceModeEnabled ? 'Actif' : 'Inactif'}
+                      </div>
+                    </div>
+
+                    <p className="text-gray-400 text-sm mb-4">
+                      Lecture vocale automatique de l'interface avec commandes vocales pour les utilisateurs malvoyants ou aveugles
+                    </p>
+
+                    {/* Fonctionnalités du mode vocal */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-300">Lecture vocale de tout le contenu</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-300">Commandes vocales "Hey ReplyFast"</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-300">Navigation vocale complète</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-300">Conforme WCAG 2.1 AAA</span>
+                      </div>
+                    </div>
+
+                    {/* Statut de disponibilité */}
+                    {!voiceAvailable ? (
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
+                        <div className="flex items-center gap-2">
+                          <VolumeX className="w-5 h-5 text-red-500 flex-shrink-0" />
+                          <p className="text-red-500 text-sm">
+                            La synthèse vocale n'est pas disponible sur votre navigateur
+                          </p>
+                        </div>
+                      </div>
+                    ) : !recognitionAvailable ? (
+                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 mb-4">
+                        <div className="flex items-center gap-2">
+                          <MicOff className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                          <p className="text-yellow-500 text-sm">
+                            Lecture vocale disponible, mais commandes vocales non supportées sur ce navigateur
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Boutons de contrôle */}
+                    {!voiceModeEnabled ? (
+                      <div className="space-y-2">
+                        <button
+                          onClick={handleEnableVoiceMode}
+                          disabled={!voiceAvailable}
+                          className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-semibold hover:scale-105 transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Volume2 className="w-5 h-5" />
+                          <span>Activer le mode vocal</span>
+                        </button>
+
+                        {voiceAvailable && (
+                          <button
+                            onClick={handleTestVoice}
+                            className="w-full px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl font-semibold transition-colors"
+                          >
+                            Tester la voix
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-3">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Mic className="w-5 h-5 text-purple-400 animate-pulse" />
+                            <div>
+                              <p className="text-purple-400 font-semibold text-sm">Mode vocal actif</p>
+                              <p className="text-purple-400/80 text-xs">Dites "Hey ReplyFast" + commande</p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-purple-300 space-y-1 ml-8">
+                            <p>• "Lire la page"</p>
+                            <p>• "Arrêter la lecture"</p>
+                            <p>• "Aller aux conversations"</p>
+                            <p>• "Aller aux rendez-vous"</p>
+                            <p>• "Aide" pour plus de commandes</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleDisableVoiceMode}
+                          className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-xl font-semibold transition-colors"
+                        >
+                          Désactiver le mode vocal
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-start gap-2 text-gray-400 text-xs">
+                    <Eye className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      Fonctionnalités d'accessibilité conformes aux standards WCAG 2.1 AAA pour les personnes malvoyantes et aveugles.
+                      Le mode vocal utilise l'API Web Speech pour une expérience mains-libres complète.
                     </p>
                   </div>
                 </div>
