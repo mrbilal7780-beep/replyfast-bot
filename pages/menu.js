@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, Upload, Save, Trash2, TrendingUp, Tag, Plus, Edit2, X, Bot } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, Upload, Save, Trash2, TrendingUp, Tag, Plus, Edit2, X, Bot, Package, TrendingDown, TrendingUp as TrendingUpIcon } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import MobileMenu from '../components/MobileMenu';
@@ -11,7 +11,7 @@ export default function MenuManager() {
   const [loading, setLoading] = useState(false);
   const [menuText, setMenuText] = useState('');
   const [success, setSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState('menu'); // 'menu' ou 'offers'
+  const [activeTab, setActiveTab] = useState('menu'); // 'menu', 'offers', ou 'inventory'
 
   // Offres spéciales
   const [offers, setOffers] = useState([]);
@@ -25,6 +25,13 @@ export default function MenuManager() {
     start_date: '',
     end_date: ''
   });
+
+  // Inventaire
+  const [inventory, setInventory] = useState([
+    { id: 1, name: 'Côtelettes', unit: 'kg', sold_today: 0, stock: 100 },
+    { id: 2, name: 'Entrecôte', unit: 'kg', sold_today: 0, stock: 50 },
+    { id: 3, name: 'Poulet', unit: 'unités', sold_today: 0, stock: 30 }
+  ]);
 
   useEffect(() => {
     checkUser();
@@ -342,7 +349,7 @@ export default function MenuManager() {
               }`}
             >
               <Upload className="w-4 h-4" />
-              Menu Principal
+              Menu
             </button>
             <button
               onClick={() => setActiveTab('offers')}
@@ -353,12 +360,23 @@ export default function MenuManager() {
               }`}
             >
               <Tag className="w-4 h-4" />
-              Offres Spéciales
+              Offres
               {offers.filter(o => o.is_active).length > 0 && (
                 <span className="bg-accent text-white text-xs px-2 py-0.5 rounded-full">
                   {offers.filter(o => o.is_active).length}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`flex-1 px-6 py-3 rounded-lg transition-all flex items-center justify-center gap-2 ${
+                activeTab === 'inventory'
+                  ? 'bg-primary/30 text-primary'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              Inventaire
             </button>
           </div>
 
@@ -563,6 +581,115 @@ export default function MenuManager() {
                 </p>
               </div>
             </>
+          )}
+
+          {/* Tab Inventaire */}
+          {activeTab === 'inventory' && (
+            <div className="glass p-6 rounded-3xl">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                    <Package className="w-7 h-7 text-purple-500" />
+                    📦 Suivi Inventaire
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Suivez vos ventes quotidiennes et gérez vos stocks
+                  </p>
+                </div>
+              </div>
+
+              {/* Liste Inventaire */}
+              <div className="space-y-3">
+                {inventory.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="glass p-4 rounded-xl hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h4 className="text-white font-semibold text-lg mb-1">{item.name}</h4>
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <TrendingUpIcon className="w-4 h-4 text-green-500" />
+                            <span className="text-gray-400">Vendu aujourd'hui:</span>
+                            <span className="text-green-400 font-bold">{item.sold_today} {item.unit}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Package className="w-4 h-4 text-blue-400" />
+                            <span className="text-gray-400">Stock:</span>
+                            <span className={`font-bold ${item.stock < 20 ? 'text-red-400' : 'text-blue-400'}`}>
+                              {item.stock} {item.unit}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="+ vente"
+                          className="w-24 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:border-accent"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              const value = parseFloat(e.target.value);
+                              if (value > 0) {
+                                setInventory(inventory.map(inv =>
+                                  inv.id === item.id
+                                    ? { ...inv, sold_today: inv.sold_today + value, stock: Math.max(0, inv.stock - value) }
+                                    : inv
+                                ));
+                                e.target.value = '';
+                              }
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            setInventory(inventory.map(inv =>
+                              inv.id === item.id ? { ...inv, sold_today: 0 } : inv
+                            ));
+                          }}
+                          className="px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg transition-colors text-xs"
+                          title="Réinitialiser ventes"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Stats du jour */}
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="glass p-4 rounded-xl">
+                  <p className="text-gray-400 text-sm mb-1">Total Vendu Aujourd'hui</p>
+                  <p className="text-2xl font-bold text-accent">
+                    {inventory.reduce((sum, item) => sum + item.sold_today, 0)} articles
+                  </p>
+                </div>
+                <div className="glass p-4 rounded-xl">
+                  <p className="text-gray-400 text-sm mb-1">Articles Suivis</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {inventory.length}
+                  </p>
+                </div>
+                <div className="glass p-4 rounded-xl">
+                  <p className="text-gray-400 text-sm mb-1">Stock Total</p>
+                  <p className="text-2xl font-bold text-blue-400">
+                    {inventory.reduce((sum, item) => sum + item.stock, 0)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 glass p-4 rounded-xl">
+                <p className="text-gray-400 text-sm">
+                  💡 <span className="text-white font-semibold">Info:</span> Entrez la quantité vendue et appuyez sur Entrée pour mettre à jour. Le stock se réduit automatiquement. Utilisez "Reset" pour réinitialiser les ventes du jour.
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>
