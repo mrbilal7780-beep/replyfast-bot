@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Send, User, Bot } from 'lucide-react';
+import { ArrowLeft, Send, User, Bot, X } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -126,6 +126,19 @@ export default function ConversationDetail() {
           )}
         </div>
       </div>
+
+      {/* Bouton fermeture FLOTTANT - toujours visible */}
+      <motion.button
+        onClick={() => router.push('/dashboard')}
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        className="fixed top-4 right-4 z-50 w-12 h-12 rounded-full bg-red-500/20 backdrop-blur-md border border-red-500/50 flex items-center justify-center hover:bg-red-500/30 transition-all shadow-lg group"
+        title="Fermer la conversation"
+      >
+        <X className="w-6 h-6 text-red-500 group-hover:text-red-400 transition-colors" />
+      </motion.button>
     </div>
   );
 }
