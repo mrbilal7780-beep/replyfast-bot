@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, TrendingUp, Clock, CheckCircle, Calendar, Upload, DollarSign, Target, Bot, AlertCircle } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, TrendingUp, Clock, CheckCircle, Calendar, Upload, DollarSign, Target, Bot, AlertCircle, MapPin, Navigation } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import MobileMenu from '../components/MobileMenu';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { getDistanceStats, getStoredPosition } from '../lib/geolocation';
 
 const COLORS = ['#667eea', '#10b981', '#ef4444', '#f59e0b'];
 
@@ -26,6 +27,8 @@ export default function Analytics() {
   const [revenueData, setRevenueData] = useState([]);
   const [hasEnoughDataForAI, setHasEnoughDataForAI] = useState(false);
   const [aiProjections, setAiProjections] = useState(null);
+  const [distanceStats, setDistanceStats] = useState(null);
+  const [geolocationEnabled, setGeolocationEnabled] = useState(false);
 
   useEffect(() => {
     checkUser();
@@ -182,6 +185,30 @@ export default function Analytics() {
           projectedGrowth: growth.toFixed(1),
           recommendation: growth > 0 ? 'Croissance positive ! Continuez sur cette lancée.' : 'Stagnation. Pensez à lancer des offres spéciales.'
         });
+      }
+
+      // Charger stats de géolocalisation si activée
+      const businessPosition = getStoredPosition();
+      if (businessPosition) {
+        setGeolocationEnabled(true);
+
+        // Obtenir stats de distance
+        const { data: businessLocation } = await supabase
+          .from('business_locations')
+          .select('*')
+          .eq('business_email', session.user.email)
+          .maybeSingle();
+
+        if (businessLocation) {
+          const distanceResult = await getDistanceStats(supabase, session.user.email, {
+            latitude: businessLocation.latitude,
+            longitude: businessLocation.longitude
+          });
+
+          if (distanceResult.success) {
+            setDistanceStats(distanceResult.stats);
+          }
+        }
       }
 
     } catch (error) {
@@ -449,6 +476,105 @@ export default function Analytics() {
                       Les projections IA nécessitent au moins 2 mois de données et 50+ messages. Continuez à utiliser ReplyFast AI pour débloquer cette fonctionnalité !
                     </p>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Statistiques de géolocalisation */}
+            {geolocationEnabled && distanceStats && (
+              <div className="mt-8 glass p-6 rounded-3xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <MapPin className="w-6 h-6 text-accent" />
+                  <h3 className="text-xl font-bold text-white">📍 Zones de clientèle</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div className="glass p-4 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Navigation className="w-4 h-4 text-primary" />
+                      <p className="text-gray-400 text-sm">Clients total</p>
+                    </div>
+                    <p className="text-2xl font-bold text-white">{distanceStats.totalClients}</p>
+                  </div>
+
+                  <div className="glass p-4 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="w-4 h-4 text-accent" />
+                      <p className="text-gray-400 text-sm">Distance moyenne</p>
+                    </div>
+                    <p className="text-2xl font-bold text-white">{distanceStats.averageDistance} km</p>
+                  </div>
+
+                  <div className="glass p-4 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-4 h-4 text-green-500" />
+                      <p className="text-gray-400 text-sm">Distance max</p>
+                    </div>
+                    <p className="text-2xl font-bold text-white">{distanceStats.maxDistance} km</p>
+                  </div>
+
+                  <div className="glass p-4 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="w-4 h-4 text-blue-500" />
+                      <p className="text-gray-400 text-sm">Distance min</p>
+                    </div>
+                    <p className="text-2xl font-bold text-white">{distanceStats.minDistance} km</p>
+                  </div>
+                </div>
+
+                {/* Graphique des zones */}
+                <div className="mb-6">
+                  <h4 className="text-white font-semibold mb-4">Répartition par zones</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={distanceStats.zones}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                      <XAxis
+                        dataKey="range"
+                        stroke="#9ca3af"
+                        style={{ fontSize: '12px' }}
+                      />
+                      <YAxis
+                        stroke="#9ca3af"
+                        style={{ fontSize: '12px' }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'rgba(10, 10, 10, 0.9)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '12px',
+                          color: '#fff'
+                        }}
+                      />
+                      <Bar dataKey="count" fill="#10b981" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Liste des zones avec pourcentages */}
+                <div className="space-y-3">
+                  {distanceStats.zones.map((zone, i) => (
+                    <div key={i} className="glass p-4 rounded-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white font-semibold">{zone.range}</span>
+                        <span className="text-accent font-semibold">{zone.count} clients ({zone.percentage}%)</span>
+                      </div>
+                      <div className="w-full bg-white/10 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-primary to-accent rounded-full h-2 transition-all duration-500"
+                          style={{width: `${zone.percentage}%`}}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 p-4 bg-accent/10 border border-accent/30 rounded-xl">
+                  <p className="text-accent text-sm flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    <span>
+                      <strong>Zone principale :</strong> {distanceStats.zones.find(z => z.count === Math.max(...distanceStats.zones.map(x => x.count)))?.range || 'N/A'}
+                    </span>
+                  </p>
                 </div>
               </div>
             )}
