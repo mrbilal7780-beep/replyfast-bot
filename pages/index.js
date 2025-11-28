@@ -5,11 +5,8 @@ import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import dynamic from 'next/dynamic';
 
-// Import dynamique des backgrounds (client-side only)
+// Import dynamique du background (client-side only)
 const ParticlesBackground = dynamic(() => import('../components/ParticlesBackground'), {
-  ssr: false,
-});
-const ThreeBackground = dynamic(() => import('../components/ThreeBackground'), {
   ssr: false,
 });
 
@@ -67,8 +64,36 @@ export default function Home() {
 
   return (
     <div className="min-h-screen overflow-hidden" style={{ backgroundColor: '#0a1628' }}>
-      {/* Fond adaptatif : 3D sur mobile, Particules sur desktop */}
-      {isMobile ? <ThreeBackground /> : <ParticlesBackground />}
+      {/* Fond adaptatif : Gradient simple sur mobile, Particules sur desktop */}
+      {!isMobile && <ParticlesBackground />}
+      {isMobile && (
+        <div className="fixed inset-0 pointer-events-none">
+          {/* Gradient de fond */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-secondary/10 to-accent/20"></div>
+          {/* Points animés subtils */}
+          <div className="absolute inset-0">
+            {[...Array(12)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1 h-1 bg-white/30 rounded-full"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                }}
+                animate={{
+                  opacity: [0.2, 0.5, 0.2],
+                  scale: [1, 1.3, 1],
+                }}
+                transition={{
+                  duration: 3 + Math.random() * 2,
+                  repeat: Infinity,
+                  delay: Math.random() * 2,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Navbar - Responsive */}
       <nav className="relative z-10 flex justify-between items-center p-4 md:p-6 max-w-7xl mx-auto">
@@ -403,7 +428,7 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Modal À propos */}
+      {/* Modal À propos - Responsive */}
       <AnimatePresence>
         {showAboutModal && (
           <motion.div
@@ -418,34 +443,34 @@ export default function Home() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="glass max-w-2xl w-full p-8 rounded-3xl relative"
+              className="glass max-w-2xl w-full p-4 sm:p-6 md:p-8 rounded-3xl relative max-h-[90vh] overflow-y-auto"
             >
               <button
                 onClick={() => setShowAboutModal(false)}
-                className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-gray-400 hover:text-white transition-colors z-10"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
 
-              <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent pr-10">
                 À propos de ReplyFast AI
               </h2>
 
-              <div className="space-y-6 text-gray-300">
-                {/* Photo du fondateur - placeholder */}
-                <div className="flex items-center gap-6">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-4xl font-bold text-white">
+              <div className="space-y-4 sm:space-y-6 text-gray-300 text-sm sm:text-base">
+                {/* Photo du fondateur - Responsive */}
+                <div className="flex items-center gap-4 sm:gap-6">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-2xl sm:text-3xl md:text-4xl font-bold text-white flex-shrink-0">
                     RF
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-white mb-1">Fondateur</h3>
-                    <p className="text-accent">Entrepreneur passionné</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Fondateur</h3>
+                    <p className="text-accent text-sm sm:text-base">Entrepreneur passionné</p>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-3">Notre Mission</h3>
-                  <p>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">Notre Mission</h3>
+                  <p className="leading-relaxed">
                     ReplyFast AI est née de la volonté de démocratiser l'intelligence artificielle
                     pour les petites et moyennes entreprises. Nous croyons que chaque commerce
                     mérite d'avoir accès aux meilleures technologies, sans complexité ni coûts prohibitifs.
@@ -453,31 +478,31 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-3">Nos Valeurs</h3>
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">Nos Valeurs</h3>
                   <ul className="space-y-2">
-                    <li className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-accent" />
-                      <span><strong>Innovation :</strong> Technologies de pointe accessibles à tous</span>
+                    <li className="flex items-start gap-2">
+                      <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-accent flex-shrink-0 mt-0.5" />
+                      <span className="leading-relaxed"><strong>Innovation :</strong> Technologies de pointe accessibles à tous</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-5 h-5 text-accent" />
-                      <span><strong>Simplicité :</strong> Interface intuitive, configuration en minutes</span>
+                    <li className="flex items-start gap-2">
+                      <Check className="w-4 h-4 sm:w-5 sm:h-5 text-accent flex-shrink-0 mt-0.5" />
+                      <span className="leading-relaxed"><strong>Simplicité :</strong> Interface intuitive, configuration en minutes</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-accent" />
-                      <span><strong>Performance :</strong> Résultats mesurables et ROI rapide</span>
+                    <li className="flex items-start gap-2">
+                      <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-accent flex-shrink-0 mt-0.5" />
+                      <span className="leading-relaxed"><strong>Performance :</strong> Résultats mesurables et ROI rapide</span>
                     </li>
                   </ul>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-3">Contact</h3>
-                  <p>
-                    Email : <a href="mailto:support@replyfast.ai" className="text-accent hover:underline">
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">Contact</h3>
+                  <p className="leading-relaxed">
+                    Email : <a href="mailto:support@replyfast.ai" className="text-accent hover:underline break-all">
                       support@replyfast.ai
                     </a>
                   </p>
-                  <p className="mt-2">
+                  <p className="mt-2 leading-relaxed">
                     Nous sommes une équipe passionnée dédiée à votre succès.
                   </p>
                 </div>
