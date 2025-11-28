@@ -74,7 +74,17 @@ export default function MenuManager() {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    alert('Upload d\'image - OCR sera implémenté prochainement!\n\nPour l\'instant, saisissez votre menu manuellement ci-dessous.');
+
+    const isPDF = file.type === 'application/pdf';
+    const isImage = file.type.startsWith('image/');
+
+    if (isPDF) {
+      alert('📄 Upload PDF détecté!\n\nL\'extraction automatique de texte depuis PDF sera implémentée prochainement.\n\nPour l\'instant, saisissez votre menu manuellement ci-dessous.');
+    } else if (isImage) {
+      alert('📷 Upload d\'image détecté!\n\nL\'OCR (reconnaissance de texte) sera implémenté prochainement.\n\nPour l\'instant, saisissez votre menu manuellement ci-dessous.');
+    } else {
+      alert('❌ Format de fichier non supporté.\n\nUtilisez: PNG, JPG, JPEG ou PDF');
+    }
   };
 
   const handleSaveMenu = async () => {
@@ -377,14 +387,14 @@ export default function MenuManager() {
                 <label className="block">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.pdf,application/pdf"
                     onChange={handleImageUpload}
                     className="hidden"
                   />
                   <div className="border-2 border-dashed border-white/20 rounded-xl p-8 hover:border-primary transition-colors cursor-pointer text-center">
                     <Upload className="w-12 h-12 text-primary mx-auto mb-3" />
                     <p className="text-white font-semibold mb-1">Cliquez pour uploader</p>
-                    <p className="text-gray-400 text-sm">PNG, JPG jusqu'à 10MB</p>
+                    <p className="text-gray-400 text-sm">PNG, JPG, PDF jusqu'à 10MB</p>
                   </div>
                 </label>
               </div>
