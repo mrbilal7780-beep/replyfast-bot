@@ -10,6 +10,7 @@ import { availableLanguages } from '../lib/i18n/translations';
 import GeolocationPermissionModal from '../components/GeolocationPermissionModal';
 import { getPermissionStatus, revokeGeolocationPermission, PERMISSION_STATES } from '../lib/geolocation';
 import { TEXT_SIZES, getTextSize, applyTextSize, getAccessibilityManager, isSpeechSynthesisAvailable, isSpeechRecognitionAvailable } from '../lib/accessibility';
+import { useGooglePlaces } from '../lib/useGooglePlaces';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -79,6 +80,37 @@ export default function SettingsPage() {
 
   // Paiements (simulé pour la démo)
   const [paymentHistory, setPaymentHistory] = useState([]);
+
+  // Google Places Autocomplete pour l'adresse
+  const { inputRef: addressInputRef, isLoaded: placesLoaded, placeDetails } = useGooglePlaces({
+    onPlaceSelected: (details) => {
+      // Mettre à jour businessData avec l'adresse formatée (functional update)
+      setBusinessData(prev => ({
+        ...prev,
+        adresse: details.formatted_address
+      }));
+
+      // Optionnel : sauvegarder aussi les coordonnées GPS si besoin
+      if (details.geometry && user?.email) {
+        supabase
+          .from('business_locations')
+          .upsert({
+            business_email: user.email,
+            latitude: details.geometry.lat,
+            longitude: details.geometry.lng,
+            address: details.formatted_address,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'business_email'
+          })
+          .then(() => console.log('✅ Coordonnées GPS sauvegardées'))
+          .catch((error) => console.error('⚠️ Erreur sauvegarde GPS:', error));
+      }
+    },
+    types: ['address'],
+    componentRestrictions: {}, // Pas de restriction de pays
+    fields: ['address_components', 'formatted_address', 'geometry', 'name']
+  });
 
   useEffect(() => {
     checkUser();
@@ -1022,15 +1054,20 @@ export default function SettingsPage() {
                   <div>
                     <label className="block text-white font-semibold mb-2 flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
-                      Adresse
+                      Adresse {placesLoaded && <span className="text-xs text-green-400">(Autocomplétion activée)</span>}
                     </label>
                     <input
+                      ref={addressInputRef}
                       type="text"
                       value={businessData.adresse}
                       onChange={(e) => setBusinessData({ ...businessData, adresse: e.target.value })}
-                      placeholder="123 Rue de la Paix, Paris"
+                      placeholder="Tapez votre adresse (ex: 123 Rue de la Paix, Paris)"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+                      disabled={!placesLoaded && process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY && process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY !== 'your_google_places_api_key'}
                     />
+                    {!placesLoaded && process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY && process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY !== 'your_google_places_api_key' && (
+                      <p className="text-xs text-gray-400 mt-1">Chargement de l'autocomplétion...</p>
+                    )}
                   </div>
 
                   <div>
