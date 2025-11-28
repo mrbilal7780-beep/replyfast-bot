@@ -8,9 +8,11 @@ import {
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import MobileMenu from '../components/MobileMenu';
+import { useNotifications } from '../contexts/NotificationContext';
 
 export default function Payment() {
   const router = useRouter();
+  const { success: showSuccess, error: showError } = useNotifications();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
@@ -25,12 +27,16 @@ export default function Payment() {
     // Check for canceled payment
     if (router.query.canceled === 'true') {
       const timer = setTimeout(() => {
-        alert('❌ Paiement annulé. Vous pouvez réessayer quand vous voulez !');
+        showError(
+          'Paiement annulé',
+          'Vous pouvez réessayer quand vous voulez. Aucun frais n\'a été prélevé.',
+          { duration: 6000 }
+        );
         router.replace('/payment', undefined, { shallow: true });
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [router.query]);
+  }, [router.query, showError]);
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -77,12 +83,22 @@ export default function Payment() {
 
   const handleSubscribe = async () => {
     if (!user) {
-      alert('Vous devez être connecté pour souscrire');
+      showError(
+        'Authentification requise',
+        'Vous devez être connecté pour souscrire à un abonnement'
+      );
       router.push('/login');
       return;
     }
 
     setCheckoutLoading(true);
+
+    // Notification de démarrage
+    showSuccess(
+      'Redirection vers Stripe',
+      'Vous allez être redirigé vers la page de paiement sécurisée...',
+      { duration: 3000 }
+    );
 
     try {
       // Appeler l'API Stripe Checkout
@@ -109,7 +125,11 @@ export default function Payment() {
       }
     } catch (error) {
       console.error('Checkout error:', error);
-      alert(`❌ Erreur: ${error.message}\n\nVérifiez que votre clé Stripe est configurée dans .env`);
+      showError(
+        'Erreur de paiement',
+        error.message || 'Vérifiez que votre clé Stripe est configurée dans .env',
+        { duration: 8000 }
+      );
       setCheckoutLoading(false);
     }
   };
