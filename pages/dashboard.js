@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, Edit2, Bot } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, Edit2, Bot, Book } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase, getSession } from '../lib/supabase';
 import MobileMenu from '../components/MobileMenu';
@@ -169,6 +169,7 @@ export default function Dashboard() {
             { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
             { icon: Bot, label: 'Assistant IA', path: '/ai-assistant' },
+            { icon: Book, label: 'Guide d\'utilisation', path: '/tutorial' },
             { icon: Settings, label: 'Paramètres', path: '/settings' },
           ].map((item, i) => (
             <button

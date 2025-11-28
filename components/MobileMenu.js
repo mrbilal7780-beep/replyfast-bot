@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, MessageSquare, Calendar, Upload, Users, TrendingUp, Zap, Bot, Settings, LogOut, CreditCard } from 'lucide-react';
+import { Menu, X, MessageSquare, Calendar, Upload, Users, TrendingUp, Zap, Bot, Settings, LogOut, CreditCard, Book } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 
@@ -16,6 +16,7 @@ export default function MobileMenu({ currentPath }) {
     { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
     { icon: Zap, label: 'Analytics', path: '/analytics' },
     { icon: Bot, label: 'Assistant IA', path: '/ai-assistant' },
+    { icon: Book, label: 'Guide d\'utilisation', path: '/tutorial' },
     { icon: CreditCard, label: 'Paiements', path: '/payment' },
     { icon: Settings, label: 'Paramètres', path: '/settings' },
   ];
