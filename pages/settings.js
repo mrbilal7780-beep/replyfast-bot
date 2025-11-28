@@ -7,6 +7,8 @@ import { getSectorsList } from '../lib/sectors';
 import MobileMenu from '../components/MobileMenu';
 import { useLanguage } from '../contexts/LanguageContext';
 import { availableLanguages } from '../lib/i18n/translations';
+import GeolocationPermissionModal from '../components/GeolocationPermissionModal';
+import { getPermissionStatus, revokeGeolocationPermission, PERMISSION_STATES } from '../lib/geolocation';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -18,6 +20,11 @@ export default function SettingsPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Géolocalisation
+  const [showGeolocationModal, setShowGeolocationModal] = useState(false);
+  const [geolocationEnabled, setGeolocationEnabled] = useState(false);
+  const [geolocationStatus, setGeolocationStatus] = useState(PERMISSION_STATES.NOT_REQUESTED);
 
   // Données profil
   const [profileData, setProfileData] = useState({
@@ -85,8 +92,63 @@ export default function SettingsPage() {
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
+
+    // Charger statut géolocalisation
+    loadGeolocationStatus();
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  const loadGeolocationStatus = async () => {
+    const status = await getPermissionStatus();
+    setGeolocationStatus(status);
+    setGeolocationEnabled(status === PERMISSION_STATES.GRANTED);
+  };
+
+  const handleEnableGeolocation = () => {
+    setShowGeolocationModal(true);
+  };
+
+  const handleGeolocationGranted = async (position) => {
+    setGeolocationEnabled(true);
+    setGeolocationStatus(PERMISSION_STATES.GRANTED);
+
+    // Sauvegarder la position du business dans la DB
+    if (user?.email) {
+      try {
+        await supabase
+          .from('business_locations')
+          .upsert({
+            business_email: user.email,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracy: position.accuracy,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'business_email'
+          });
+      } catch (error) {
+        console.error('Erreur sauvegarde position business:', error);
+      }
+    }
+
+    alert('✅ Géolocalisation activée ! Vos statistiques de distance seront bientôt disponibles.');
+  };
+
+  const handleGeolocationDenied = (error) => {
+    setGeolocationEnabled(false);
+    setGeolocationStatus(PERMISSION_STATES.DENIED);
+    alert(`❌ Autorisation refusée. ${error || ''}`);
+  };
+
+  const handleDisableGeolocation = () => {
+    if (confirm('Êtes-vous sûr de vouloir désactiver la géolocalisation ? Les statistiques de distance ne seront plus calculées.')) {
+      revokeGeolocationPermission();
+      setGeolocationEnabled(false);
+      setGeolocationStatus(PERMISSION_STATES.NOT_REQUESTED);
+      alert('✅ Géolocalisation désactivée');
+    }
+  };
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -1189,6 +1251,67 @@ export default function SettingsPage() {
                   </p>
                 </div>
 
+                {/* Géolocalisation */}
+                <div className="pt-6 border-t border-white/10">
+                  <label className="block text-white font-semibold mb-3 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-accent" />
+                    Géolocalisation
+                  </label>
+
+                  <div className="glass p-4 rounded-xl mb-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <p className="text-white font-semibold mb-1">Statistiques de distance</p>
+                        <p className="text-gray-400 text-sm">
+                          Activez la géolocalisation pour calculer les distances clients et créer des zones de vente
+                        </p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        geolocationEnabled
+                          ? 'bg-accent/20 text-accent'
+                          : 'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {geolocationEnabled ? 'Activée' : 'Désactivée'}
+                      </div>
+                    </div>
+
+                    {!geolocationEnabled ? (
+                      <button
+                        onClick={handleEnableGeolocation}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-primary to-accent rounded-xl text-white font-semibold hover:scale-105 transition-transform flex items-center justify-center gap-2"
+                      >
+                        <MapPin className="w-5 h-5" />
+                        <span>Activer la géolocalisation</span>
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="bg-accent/10 border border-accent/30 rounded-xl p-3 flex items-center gap-3">
+                          <Check className="w-5 h-5 text-accent flex-shrink-0" />
+                          <div>
+                            <p className="text-accent font-semibold text-sm">Géolocalisation active</p>
+                            <p className="text-accent/80 text-xs">Vos statistiques de distance sont disponibles dans Analytics</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleDisableGeolocation}
+                          className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-xl font-semibold transition-colors"
+                        >
+                          Désactiver
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-start gap-2 text-gray-400 text-xs">
+                    <Shield className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      Vos données de localisation sont chiffrées, stockées de manière sécurisée et conformes au RGPD.
+                      Vous pouvez les supprimer à tout moment.
+                    </p>
+                  </div>
+                </div>
+
                 <button
                   onClick={handleSavePreferences}
                   disabled={loading}
@@ -1222,6 +1345,14 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de demande de géolocalisation */}
+      <GeolocationPermissionModal
+        isOpen={showGeolocationModal}
+        onClose={() => setShowGeolocationModal(false)}
+        onGranted={handleGeolocationGranted}
+        onDenied={handleGeolocationDenied}
+      />
     </div>
   );
 }
