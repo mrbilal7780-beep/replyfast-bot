@@ -65,6 +65,15 @@ export default function SettingsPage() {
     checkUser();
     loadAllData();
     loadPaymentHistory();
+
+    // Charger et appliquer le thème depuis localStorage
+    const savedTheme = localStorage.getItem('replyfast_theme');
+    if (savedTheme) {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      document.documentElement.classList.remove('dark', 'light');
+      document.documentElement.classList.add(savedTheme);
+      setPreferences(prev => ({ ...prev, theme: savedTheme }));
+    }
   }, []);
 
   const checkUser = async () => {
@@ -290,7 +299,6 @@ export default function SettingsPage() {
         .from('user_preferences')
         .upsert({
           user_email: user.email,
-          client_email: user.email,
           ...preferences
         });
 
@@ -381,8 +389,7 @@ export default function SettingsPage() {
           two_factor_enabled: true,
           two_factor_secret: 'JBSWY3DPEHPK3PXP' // Dans la vraie vie, chiffrer ce secret
         })
-        .eq('user_email', user.email)
-        .eq('client_email', user.email);
+        .eq('user_email', user.email);
 
       if (error && error.code !== 'PGRST116') {
         // Si aucune ligne trouvée, créer une nouvelle entrée
@@ -390,7 +397,6 @@ export default function SettingsPage() {
           .from('user_preferences')
           .insert({
             user_email: user.email,
-            client_email: user.email,
             two_factor_enabled: true,
             two_factor_secret: 'JBSWY3DPEHPK3PXP'
           });
