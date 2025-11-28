@@ -5,17 +5,31 @@ import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import dynamic from 'next/dynamic';
 
-// Import dynamique du background Particules (client-side only)
+// Import dynamique des backgrounds (client-side only)
 const ParticlesBackground = dynamic(() => import('../components/ParticlesBackground'), {
+  ssr: false,
+});
+const ThreeBackground = dynamic(() => import('../components/ThreeBackground'), {
   ssr: false,
 });
 
 export default function Home() {
   const router = useRouter();
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     checkUser();
+
+    // Détecter si mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const checkUser = async () => {
@@ -44,8 +58,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen overflow-hidden" style={{ backgroundColor: '#0a1628' }}>
-      {/* Fond Particules bleues */}
-      <ParticlesBackground />
+      {/* Fond adaptatif : 3D sur mobile, Particules sur desktop */}
+      {isMobile ? <ThreeBackground /> : <ParticlesBackground />}
 
       {/* Navbar - Responsive */}
       <nav className="relative z-10 flex justify-between items-center p-4 md:p-6 max-w-7xl mx-auto">

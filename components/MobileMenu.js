@@ -1,13 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, MessageSquare, Calendar, Upload, Users, TrendingUp, Zap, Bot, Settings, LogOut } from 'lucide-react';
+import { Menu, X, MessageSquare, Calendar, Upload, Users, TrendingUp, Zap, Bot, Settings, LogOut, CreditCard } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '../lib/supabase';
 
 export default function MobileMenu({ currentPath }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,6 +16,7 @@ export default function MobileMenu({ currentPath }) {
     { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
     { icon: Zap, label: 'Analytics', path: '/analytics' },
     { icon: Bot, label: 'Assistant IA', path: '/ai-assistant' },
+    { icon: CreditCard, label: 'Paiements', path: '/payment' },
     { icon: Settings, label: 'Paramètres', path: '/settings' },
   ];
 

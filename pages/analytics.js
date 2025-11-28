@@ -2,13 +2,9 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, Users, Zap, Settings, LogOut, TrendingUp, Clock, CheckCircle, Calendar, Upload, DollarSign, Target, Bot, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import MobileMenu from '../components/MobileMenu';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 const COLORS = ['#667eea', '#10b981', '#ef4444', '#f59e0b'];
 
@@ -196,6 +192,9 @@ export default function Analytics() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
+      {/* Mobile Menu */}
+      <MobileMenu currentPath="/analytics" />
+
       {/* Fond animé */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
@@ -220,8 +219,8 @@ export default function Analytics() {
         ))}
       </div>
 
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
+      {/* Sidebar - Hidden on mobile, visible on desktop */}
+      <div className="hidden lg:block fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             ReplyFast AI
@@ -267,8 +266,8 @@ export default function Analytics() {
         </button>
       </div>
 
-      {/* Contenu principal */}
-      <div className="ml-64 p-8 relative z-10">
+      {/* Contenu principal - Responsive margin */}
+      <div className="lg:ml-64 p-4 lg:p-8 relative z-10">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">
             📊 Analytics

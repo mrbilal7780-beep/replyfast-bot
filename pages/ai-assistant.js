@@ -2,12 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Bot, Send, Loader, Sparkles, TrendingUp, Calendar, DollarSign, MessageSquare, Users } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '../lib/supabase';
 
 export default function AIAssistant() {
   const router = useRouter();

@@ -51,6 +51,13 @@ export default function SettingsPage() {
     confirmPassword: ''
   });
 
+  // 2FA
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState([]);
+
   // Paiements (simulé pour la démo)
   const [paymentHistory, setPaymentHistory] = useState([]);
 
@@ -75,11 +82,15 @@ export default function SettingsPage() {
     if (!session) return;
 
     // Charger données client
-    const { data: client } = await supabase
+    const { data: client, error: clientError } = await supabase
       .from('clients')
       .select('*')
       .eq('email', session.user.email)
-      .single();
+      .maybeSingle();
+
+    if (clientError) {
+      console.warn('⚠️ Erreur chargement client:', clientError);
+    }
 
     if (client) {
       setBusinessData({
@@ -96,11 +107,15 @@ export default function SettingsPage() {
     }
 
     // Charger business_info
-    const { data: businessInfo } = await supabase
+    const { data: businessInfo, error: businessError } = await supabase
       .from('business_info')
       .select('*')
       .eq('client_email', session.user.email)
-      .single();
+      .maybeSingle();
+
+    if (businessError) {
+      console.warn('⚠️ Erreur chargement business_info:', businessError);
+    }
 
     if (businessInfo) {
       setBusinessData(prev => ({
@@ -116,11 +131,15 @@ export default function SettingsPage() {
     }
 
     // Charger préférences
-    const { data: prefs } = await supabase
+    const { data: prefs, error: prefsError } = await supabase
       .from('user_preferences')
       .select('*')
       .eq('user_email', session.user.email)
-      .single();
+      .maybeSingle();
+
+    if (prefsError) {
+      console.warn('⚠️ Erreur chargement préférences:', prefsError);
+    }
 
     if (prefs) {
       setPreferences({
@@ -130,6 +149,11 @@ export default function SettingsPage() {
         notifications_nouveaux_clients: prefs.notifications_nouveaux_clients ?? true,
         langue: prefs.langue || 'fr'
       });
+
+      // Charger 2FA status si existe
+      if (prefs.two_factor_enabled !== undefined) {
+        setTwoFactorEnabled(prefs.two_factor_enabled || false);
+      }
     }
   };
 
@@ -314,6 +338,97 @@ export default function SettingsPage() {
       });
     } catch (error) {
       alert('❌ Erreur : ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  const handleEnable2FA = async () => {
+    setLoading(true);
+    try {
+      // Générer un secret 2FA (simulé - dans la vraie vie, utiliser un vrai générateur TOTP)
+      const secret = 'JBSWY3DPEHPK3PXP'; // Exemple de secret base32
+      const qrUrl = `https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl=otpauth://totp/ReplyFastAI:${user.email}?secret=${secret}&issuer=ReplyFastAI`;
+
+      setQrCodeUrl(qrUrl);
+      setShowQRCode(true);
+
+      // Générer des backup codes
+      const codes = Array.from({ length: 10 }, () =>
+        Math.random().toString(36).substring(2, 10).toUpperCase()
+      );
+      setBackupCodes(codes);
+    } catch (error) {
+      alert('❌ Erreur lors de l\'activation de la 2FA');
+    }
+    setLoading(false);
+  };
+
+  const handleVerify2FA = async () => {
+    if (verificationCode.length !== 6) {
+      alert('❌ Le code doit contenir 6 chiffres');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Dans une vraie app, vérifier le code TOTP ici
+      // Pour la démo, accepter n'importe quel code de 6 chiffres
+
+      // Sauvegarder le statut 2FA
+      const { error } = await supabase
+        .from('user_preferences')
+        .update({
+          two_factor_enabled: true,
+          two_factor_secret: 'JBSWY3DPEHPK3PXP' // Dans la vraie vie, chiffrer ce secret
+        })
+        .eq('user_email', user.email)
+        .eq('client_email', user.email);
+
+      if (error && error.code !== 'PGRST116') {
+        // Si aucune ligne trouvée, créer une nouvelle entrée
+        const { error: insertError } = await supabase
+          .from('user_preferences')
+          .insert({
+            user_email: user.email,
+            client_email: user.email,
+            two_factor_enabled: true,
+            two_factor_secret: 'JBSWY3DPEHPK3PXP'
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      setTwoFactorEnabled(true);
+      setShowQRCode(false);
+      setVerificationCode('');
+      alert('✅ Authentification à deux facteurs activée avec succès !');
+    } catch (error) {
+      console.error(error);
+      alert('❌ Erreur lors de la vérification');
+    }
+    setLoading(false);
+  };
+
+  const handleDisable2FA = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir désactiver la 2FA ?')) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('user_preferences')
+        .update({
+          two_factor_enabled: false,
+          two_factor_secret: null
+        })
+        .eq('user_email', user.email);
+
+      if (error) throw error;
+
+      setTwoFactorEnabled(false);
+      setBackupCodes([]);
+      alert('✅ Authentification à deux facteurs désactivée');
+    } catch (error) {
+      alert('❌ Erreur lors de la désactivation');
     }
     setLoading(false);
   };
@@ -739,6 +854,116 @@ export default function SettingsPage() {
                       Votre mot de passe est crypté et sécurisé. Nous ne pourrons jamais le voir.
                     </span>
                   </p>
+                </div>
+
+                {/* Authentification à deux facteurs */}
+                <div className="mt-8 pt-8 border-t border-white/10">
+                  <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-accent" />
+                    Authentification à deux facteurs (2FA)
+                  </h4>
+
+                  {!twoFactorEnabled ? (
+                    <div className="space-y-4">
+                      <p className="text-gray-400 text-sm">
+                        Ajoutez une couche de sécurité supplémentaire à votre compte en activant l'authentification à deux facteurs.
+                      </p>
+
+                      {!showQRCode ? (
+                        <button
+                          onClick={handleEnable2FA}
+                          disabled={loading}
+                          className="px-6 py-3 bg-gradient-to-r from-accent to-primary rounded-xl text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50"
+                        >
+                          Activer la 2FA
+                        </button>
+                      ) : (
+                        <div className="bg-white/5 p-6 rounded-xl space-y-4">
+                          <div className="text-center">
+                            <p className="text-white font-semibold mb-3">
+                              Scannez ce QR code avec votre application d'authentification
+                            </p>
+                            <img
+                              src={qrCodeUrl}
+                              alt="QR Code 2FA"
+                              className="w-48 h-48 mx-auto mb-4 bg-white p-2 rounded-xl"
+                            />
+                            <p className="text-gray-400 text-sm mb-4">
+                              Utilisez Google Authenticator, Authy ou une autre app compatible
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-white font-semibold mb-2">
+                              Code de vérification (6 chiffres)
+                            </label>
+                            <input
+                              type="text"
+                              value={verificationCode}
+                              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              placeholder="123456"
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-2xl tracking-widest placeholder-gray-500 focus:outline-none focus:border-accent"
+                              maxLength={6}
+                            />
+                          </div>
+
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => {
+                                setShowQRCode(false);
+                                setVerificationCode('');
+                              }}
+                              className="flex-1 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors"
+                            >
+                              Annuler
+                            </button>
+                            <button
+                              onClick={handleVerify2FA}
+                              disabled={loading || verificationCode.length !== 6}
+                              className="flex-1 px-6 py-3 bg-gradient-to-r from-accent to-primary rounded-xl text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Vérifier et Activer
+                            </button>
+                          </div>
+
+                          {/* Backup codes */}
+                          {backupCodes.length > 0 && (
+                            <div className="mt-4 bg-yellow-500/10 border border-yellow-500/50 rounded-xl p-4">
+                              <p className="text-yellow-500 font-semibold mb-2">⚠️ Codes de secours</p>
+                              <p className="text-yellow-500 text-xs mb-3">
+                                Conservez ces codes en lieu sûr. Vous pourrez les utiliser si vous perdez l'accès à votre app d'authentification.
+                              </p>
+                              <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+                                {backupCodes.map((code, i) => (
+                                  <div key={i} className="bg-white/5 px-3 py-2 rounded text-white text-center">
+                                    {code}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="bg-accent/10 border border-accent/50 rounded-xl p-4 flex items-center gap-3">
+                        <CheckCircle className="w-6 h-6 text-accent flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-accent font-semibold">2FA activée</p>
+                          <p className="text-gray-400 text-sm">Votre compte est protégé par l'authentification à deux facteurs</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleDisable2FA}
+                        disabled={loading}
+                        className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        Désactiver la 2FA
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

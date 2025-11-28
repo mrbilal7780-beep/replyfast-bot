@@ -2,12 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, Upload, Save, Trash2, TrendingUp, Tag, Plus, Edit2, X, Bot } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '../lib/supabase';
+import MobileMenu from '../components/MobileMenu';
 
 export default function MenuManager() {
   const router = useRouter();
@@ -239,6 +235,9 @@ export default function MenuManager() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
+      {/* Mobile Menu */}
+      <MobileMenu currentPath="/menu" />
+
       {/* Fond animé */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
@@ -263,8 +262,8 @@ export default function MenuManager() {
         ))}
       </div>
 
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
+      {/* Sidebar - Hidden on mobile, visible on desktop */}
+      <div className="hidden lg:block fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             ReplyFast AI
@@ -310,8 +309,8 @@ export default function MenuManager() {
         </button>
       </div>
 
-      {/* Contenu principal */}
-      <div className="ml-64 p-8 relative z-10">
+      {/* Contenu principal - Responsive margin */}
+      <div className="lg:ml-64 p-4 lg:p-8 relative z-10">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-white mb-2">

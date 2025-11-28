@@ -1,13 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, Search, Star, AlertCircle, CheckCircle, Clock, Bot, Phone, Mail, MessageCircle } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, Search, Star, AlertCircle, CheckCircle, Clock, Bot, Phone, Mail, MessageCircle, Edit2, ArrowUpDown } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '../lib/supabase';
+import MobileMenu from '../components/MobileMenu';
 
 export default function Clients() {
   const router = useRouter();
@@ -15,6 +11,10 @@ export default function Clients() {
   const [activeCategory, setActiveCategory] = useState('all'); // 'all', 'active', 'potential', 'leads'
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('lastContact'); // 'name', 'lastContact', 'appointments'
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renamingClient, setRenamingClient] = useState(null);
+  const [newName, setNewName] = useState('');
 
   useEffect(() => {
     checkUser();
@@ -184,6 +184,45 @@ export default function Clients() {
     return `Il y a ${days} jours`;
   };
 
+  const handleRenameClient = async () => {
+    if (!newName.trim() || !renamingClient) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Mettre à jour le nom dans tous les RDV
+      await supabase
+        .from('appointments')
+        .update({ customer_name: newName })
+        .eq('customer_phone', renamingClient.phone)
+        .eq('client_email', session.user.email);
+
+      // Mettre à jour le nom dans tous les messages
+      await supabase
+        .from('messages')
+        .update({ customer_name: newName })
+        .eq('customer_phone', renamingClient.phone)
+        .eq('client_email', session.user.email);
+
+      // Recharger les clients
+      await loadClients();
+      setShowRenameModal(false);
+      setRenamingClient(null);
+      setNewName('');
+      alert('✅ Client renommé avec succès !');
+    } catch (error) {
+      console.error('Erreur renommage:', error);
+      alert('❌ Erreur lors du renommage');
+    }
+  };
+
+  const openRenameModal = (client) => {
+    setRenamingClient(client);
+    setNewName(client.name);
+    setShowRenameModal(true);
+  };
+
   const filteredClients = clients.filter(client => {
     // Filtre par catégorie
     if (activeCategory !== 'all' && client.category !== activeCategory) {
@@ -201,6 +240,17 @@ export default function Clients() {
     }
 
     return true;
+  }).sort((a, b) => {
+    // Tri
+    switch(sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'appointments':
+        return b.appointments.length - a.appointments.length;
+      case 'lastContact':
+      default:
+        return new Date(b.lastContact) - new Date(a.lastContact);
+    }
   });
 
   const categories = [
@@ -212,6 +262,9 @@ export default function Clients() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
+      {/* Mobile Menu */}
+      <MobileMenu currentPath="/clients" />
+
       {/* Fond animé */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
@@ -236,8 +289,8 @@ export default function Clients() {
         ))}
       </div>
 
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
+      {/* Sidebar - Hidden on mobile, visible on desktop */}
+      <div className="hidden lg:block fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             ReplyFast AI
@@ -283,8 +336,8 @@ export default function Clients() {
         </button>
       </div>
 
-      {/* Contenu principal */}
-      <div className="ml-64 p-8 relative z-10">
+      {/* Contenu principal - Responsive margin */}
+      <div className="lg:ml-64 p-4 lg:p-8 relative z-10">
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">
             👥 Mes Clients
@@ -294,16 +347,31 @@ export default function Clients() {
           </p>
         </div>
 
-        {/* Barre de recherche */}
-        <div className="glass p-4 rounded-xl mb-6 flex items-center gap-3">
-          <Search className="w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher un client (nom, téléphone, email)..."
-            className="flex-1 bg-transparent text-white placeholder-gray-500 focus:outline-none"
-          />
+        {/* Barre de recherche et tri */}
+        <div className="flex gap-4 mb-6">
+          <div className="flex-1 glass p-4 rounded-xl flex items-center gap-3">
+            <Search className="w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher un client (nom, téléphone, email)..."
+              className="flex-1 bg-transparent text-white placeholder-gray-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="glass p-2 rounded-xl flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-gray-400 ml-2" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-transparent text-white px-3 py-2 rounded-lg focus:outline-none cursor-pointer"
+            >
+              <option value="lastContact" className="bg-gray-800">Dernière activité</option>
+              <option value="name" className="bg-gray-800">Nom (A-Z)</option>
+              <option value="appointments" className="bg-gray-800">Nombre de RDV</option>
+            </select>
+          </div>
         </div>
 
         {/* Filtres par catégorie */}
@@ -444,6 +512,13 @@ export default function Clients() {
                       >
                         Voir conversation
                       </button>
+                      <button
+                        onClick={() => openRenameModal(client)}
+                        className="px-4 py-2 bg-accent/20 hover:bg-accent/30 text-accent rounded-xl transition-colors text-sm flex items-center gap-2"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        Renommer
+                      </button>
                       {client.category === 'leads' && (
                         <span className="px-4 py-2 bg-yellow-500/20 text-yellow-500 rounded-xl text-xs text-center">
                           À relancer
@@ -479,6 +554,64 @@ export default function Clients() {
           </div>
         </div>
       </div>
+
+      {/* Modal Renommer Client */}
+      <AnimatePresence>
+        {showRenameModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowRenameModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="glass p-8 rounded-3xl max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <Edit2 className="w-6 h-6 text-accent" />
+                Renommer le client
+              </h3>
+
+              <div className="mb-6">
+                <label className="block text-sm text-gray-400 mb-2">Nouveau nom</label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleRenameClient()}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent transition-colors"
+                  placeholder="Nouveau nom..."
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  📱 Téléphone: {renamingClient?.phone}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRenameModal(false)}
+                  className="flex-1 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleRenameClient}
+                  disabled={!newName.trim()}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-primary to-accent rounded-xl text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  Renommer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
