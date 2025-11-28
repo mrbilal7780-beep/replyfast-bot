@@ -5,9 +5,12 @@ import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { getSectorsList } from '../lib/sectors';
 import MobileMenu from '../components/MobileMenu';
+import { useLanguage } from '../contexts/LanguageContext';
+import { availableLanguages } from '../lib/i18n/translations';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { locale, changeLanguage } = useLanguage();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -1158,6 +1161,32 @@ export default function SettingsPage() {
                       />
                     </label>
                   </div>
+                </div>
+
+                {/* Sélecteur de langue */}
+                <div>
+                  <label className="block text-white font-semibold mb-3">
+                    🌍 Langue / Language
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {availableLanguages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => changeLanguage(lang.code)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          locale === lang.code
+                            ? 'border-primary bg-primary/20'
+                            : 'border-white/10 bg-white/5 hover:border-white/20'
+                        }`}
+                      >
+                        <div className="text-3xl mb-2">{lang.flag}</div>
+                        <p className="text-white text-sm font-semibold">{lang.name}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-gray-400 text-sm mt-3">
+                    La langue est sauvegardée automatiquement • Language is saved automatically
+                  </p>
                 </div>
 
                 <button

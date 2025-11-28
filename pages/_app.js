@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { LanguageProvider } from '../contexts/LanguageContext';
 import '../styles/globals.css';
 import '../styles/calendar.css';
 
@@ -85,7 +86,9 @@ function MyApp({ Component, pageProps }) {
 
   return (
     <ErrorBoundary>
-      <Component {...pageProps} />
+      <LanguageProvider>
+        <Component {...pageProps} />
+      </LanguageProvider>
     </ErrorBoundary>
   );
 }
