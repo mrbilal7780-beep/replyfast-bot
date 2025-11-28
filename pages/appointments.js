@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar as CalendarIcon, Clock, Check, X, Phone, TrendingUp, Upload, List, CalendarDays, UserPlus, AlertCircle, Bot } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar as CalendarIcon, Clock, Check, X, Phone, TrendingUp, Upload, List, CalendarDays, UserPlus, AlertCircle, Bot, Archive, ArchiveX } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
@@ -31,15 +31,39 @@ export default function Appointments() {
 
   useEffect(() => {
     checkUser();
+    archivePastAppointments(); // Archiver automatiquement les RDV passés
     loadAppointments();
 
-    const interval = setInterval(loadAppointments, 10000);
+    const interval = setInterval(() => {
+      archivePastAppointments();
+      loadAppointments();
+    }, 60000); // Toutes les minutes
     return () => clearInterval(interval);
   }, [filter]);
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) router.push('/login');
+  };
+
+  const archivePastAppointments = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const today = moment().format('YYYY-MM-DD');
+    const now = moment().format('HH:mm');
+
+    // Archiver tous les RDV passés (date < aujourd'hui OU date = aujourd'hui ET heure < maintenant)
+    const { error } = await supabase
+      .from('appointments')
+      .update({ archived: true, archived_at: new Date().toISOString() })
+      .eq('client_email', session.user.email)
+      .or(`appointment_date.lt.${today},and(appointment_date.eq.${today},appointment_time.lt.${now})`)
+      .eq('archived', false); // Seulement ceux pas encore archivés
+
+    if (error) {
+      console.error('Erreur archivage automatique:', error);
+    }
   };
 
   const loadAppointments = async () => {
@@ -49,13 +73,20 @@ export default function Appointments() {
       let query = supabase
         .from('appointments')
         .select('*')
-        .eq('client_email', session.user.email)
+        .eq('client_email', session.user.email);
+
+      // Filtrer les archivés
+      if (filter === 'archived') {
+        query = query.eq('archived', true);
+      } else if (filter === 'all') {
+        query = query.eq('archived', false); // Ne montrer que les non-archivés par défaut
+      } else {
+        query = query.eq('status', filter).eq('archived', false);
+      }
+
+      query = query
         .order('appointment_date', { ascending: false }) // RÉCENT EN HAUT
         .order('appointment_time', { ascending: false });
-
-      if (filter !== 'all') {
-        query = query.eq('status', filter);
-      }
 
       const { data } = await query;
       if (data) setAppointments(data);
@@ -95,6 +126,30 @@ export default function Appointments() {
         // Notifier la première personne en attente
         alert(`✅ Une place s'est libérée ! Contact en waitlist: ${waitlist[0].customer_name}`);
       }
+    }
+  };
+
+  const handleArchive = async (id) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ archived: true, archived_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (!error) {
+      loadAppointments();
+      alert('✅ Rendez-vous archivé');
+    }
+  };
+
+  const handleUnarchive = async (id) => {
+    const { error } = await supabase
+      .from('appointments')
+      .update({ archived: false, archived_at: null })
+      .eq('id', id);
+
+    if (!error) {
+      loadAppointments();
+      alert('✅ Rendez-vous restauré');
     }
   };
 
@@ -334,13 +389,14 @@ export default function Appointments() {
         </div>
 
         {/* Filtres */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-4 mb-6 overflow-x-auto pb-2">
           {[
-            { value: 'all', label: 'Tous', count: appointments.length },
+            { value: 'all', label: 'Actifs', count: appointments.length },
             { value: 'pending', label: 'En attente', count: appointments.filter(a => a.status === 'pending').length },
             { value: 'confirmed', label: 'Confirmés', count: appointments.filter(a => a.status === 'confirmed').length },
             { value: 'completed', label: 'Terminés', count: appointments.filter(a => a.status === 'completed').length },
             { value: 'cancelled', label: 'Annulés', count: appointments.filter(a => a.status === 'cancelled').length },
+            { value: 'archived', label: '📦 Archivés', count: appointments.filter(a => a.archived).length, icon: Archive },
           ].map((f) => (
             <button
               key={f.value}
@@ -511,8 +567,8 @@ export default function Appointments() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
-                      {apt.status === 'pending' && (
+                    <div className="flex flex-wrap gap-2">
+                      {apt.status === 'pending' && !apt.archived && (
                         <>
                           <button
                             onClick={() => updateStatus(apt.id, 'confirmed')}
@@ -530,7 +586,7 @@ export default function Appointments() {
                           </button>
                         </>
                       )}
-                      {apt.status === 'confirmed' && (
+                      {apt.status === 'confirmed' && !apt.archived && (
                         <>
                           <button
                             onClick={() => updateStatus(apt.id, 'completed')}
@@ -547,6 +603,27 @@ export default function Appointments() {
                             Désistement
                           </button>
                         </>
+                      )}
+
+                      {/* Bouton Archiver/Désarchiver */}
+                      {!apt.archived ? (
+                        <button
+                          onClick={() => handleArchive(apt.id)}
+                          className="px-4 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-500 rounded-xl transition-colors flex items-center gap-2"
+                          title="Archiver ce rendez-vous"
+                        >
+                          <Archive className="w-4 h-4" />
+                          Archiver
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleUnarchive(apt.id)}
+                          className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-500 rounded-xl transition-colors flex items-center gap-2"
+                          title="Restaurer ce rendez-vous"
+                        >
+                          <ArchiveX className="w-4 h-4" />
+                          Restaurer
+                        </button>
                       )}
                     </div>
                   </div>
