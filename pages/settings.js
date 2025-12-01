@@ -604,6 +604,8 @@ export default function SettingsPage() {
         .upsert({
           user_email: user.email,
           ...preferences
+        }, {
+          onConflict: 'user_email'  // 🔧 FIX: Spécifier la clé unique pour éviter les duplicates
         });
 
       if (error) throw error;
@@ -694,27 +696,18 @@ export default function SettingsPage() {
       // Dans une vraie app, vérifier le code TOTP ici
       // Pour la démo, accepter n'importe quel code de 6 chiffres
 
-      // Sauvegarder le statut 2FA
+      // Sauvegarder le statut 2FA avec upsert (évite les duplicates)
       const { error } = await supabase
         .from('user_preferences')
-        .update({
+        .upsert({
+          user_email: user.email,
           two_factor_enabled: true,
           two_factor_secret: 'JBSWY3DPEHPK3PXP' // Dans la vraie vie, chiffrer ce secret
-        })
-        .eq('user_email', user.email);
+        }, {
+          onConflict: 'user_email'  // 🔧 FIX: Utiliser upsert au lieu de update+insert
+        });
 
-      if (error && error.code !== 'PGRST116') {
-        // Si aucune ligne trouvée, créer une nouvelle entrée
-        const { error: insertError } = await supabase
-          .from('user_preferences')
-          .insert({
-            user_email: user.email,
-            two_factor_enabled: true,
-            two_factor_secret: 'JBSWY3DPEHPK3PXP'
-          });
-
-        if (insertError) throw insertError;
-      }
+      if (error) throw error;
 
       setTwoFactorEnabled(true);
       setShowQRCode(false);

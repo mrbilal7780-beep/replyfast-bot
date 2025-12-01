@@ -178,13 +178,17 @@ export default function Onboarding() {
       console.log('✅ Business info créé:', businessData);
 
       // 3. Créer préférences utilisateur
-      const { data: prefsData, error: prefsError } = await supabase
+      const { data: prefsData, error: prefsError} = await supabase
         .from('user_preferences')
         .upsert({
-          client_email: user.email,
           user_email: user.email,
           theme: 'dark',
-          language: 'fr'
+          langue: 'fr',
+          notifications_email: true,
+          notifications_rdv: true,
+          notifications_nouveaux_clients: true
+        }, {
+          onConflict: 'user_email'  // 🔧 FIX: Spécifier la clé unique pour éviter les duplicates
         })
         .select();
 

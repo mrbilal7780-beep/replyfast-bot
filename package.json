@@ -1,31 +1,29 @@
 {
   "name": "replyfast",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.4.0",
     "@supabase/supabase-js": "^2.84.0",
     "autoprefixer": "^10.4.22",
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.554.0",
     "moment": "^2.30.1",
-    "next": "^14.0.0",
+    "next": "^14.2.33",
     "openai": "^6.9.1",
     "postcss": "^8.5.6",
     "raw-body": "^3.0.1",
-    "react": "^18.2.0",
+    "react": "^18.3.1",
     "react-big-calendar": "^1.19.4",
-    "react-dom": "^18.2.0",
+    "react-dom": "^18.3.1",
     "recharts": "^2.15.4",
     "stripe": "^17.5.0",
     "tailwindcss": "^3.4.18",
-    "three": "^0.181.2",
     "twilio": "^5.10.5"
   }
 }
