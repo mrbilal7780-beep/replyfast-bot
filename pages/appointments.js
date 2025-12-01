@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar as CalendarIcon, Clock, Check, X, Phone, TrendingUp, Upload, List, CalendarDays, UserPlus, AlertCircle, Bot, Archive, ArchiveX } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar as CalendarIcon, Clock, Check, X, Phone, TrendingUp, Upload, List, CalendarDays, UserPlus, AlertCircle, Bot, Archive, ArchiveX, Bell } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
@@ -8,13 +8,15 @@ import moment from 'moment';
 import 'moment/locale/fr';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import MobileMenu from '../components/MobileMenu';
+import { useRealTimeAppointments } from '../lib/useRealTimeAppointments';
+import { useNotifications } from '../contexts/NotificationContext';
 
 moment.locale('fr');
 const localizer = momentLocalizer(moment);
 
 export default function Appointments() {
   const router = useRouter();
-  const [appointments, setAppointments] = useState([]);
+  const [user, setUser] = useState(null);
   const [filter, setFilter] = useState('all');
   const [viewMode, setViewMode] = useState('calendar'); // 'calendar' ou 'list'
   const [selectedDate, setSelectedDate] = useState(null);
@@ -29,26 +31,67 @@ export default function Appointments() {
     service: ''
   });
 
+  // 🔥 REAL-TIME SYNC: Utiliser le hook de synchronisation en temps réel
+  const {
+    appointments: realtimeAppointments,
+    newAppointmentCount,
+    resetNewCount,
+    loading: realtimeLoading
+  } = useRealTimeAppointments(user?.email);
+
+  const { success: showSuccess } = useNotifications();
+
+  // State local pour les appointments filtrés
+  const [appointments, setAppointments] = useState([]);
+
+  // Notifier l'utilisateur lors de nouveaux RDV
+  useEffect(() => {
+    if (newAppointmentCount > 0) {
+      showSuccess(
+        '🎉 Nouveau rendez-vous !',
+        `${newAppointmentCount} nouveau${newAppointmentCount > 1 ? 'x' : ''} rendez-vous ajouté${newAppointmentCount > 1 ? 's' : ''} automatiquement par l'IA`,
+        { duration: 5000 }
+      );
+      resetNewCount();
+    }
+  }, [newAppointmentCount, showSuccess, resetNewCount]);
+
+  // Filtrer les appointments en temps réel selon le filtre sélectionné
+  useEffect(() => {
+    let filtered = realtimeAppointments;
+
+    if (filter === 'archived') {
+      filtered = realtimeAppointments.filter(a => a.archived === true);
+    } else if (filter === 'all') {
+      filtered = realtimeAppointments.filter(a => !a.archived);
+    } else {
+      filtered = realtimeAppointments.filter(a => a.status === filter && !a.archived);
+    }
+
+    setAppointments(filtered);
+  }, [realtimeAppointments, filter]);
+
   useEffect(() => {
     checkUser();
     archivePastAppointments(); // Archiver automatiquement les RDV passés
-    loadAppointments();
 
     const interval = setInterval(() => {
       archivePastAppointments();
-      loadAppointments();
     }, 60000); // Toutes les minutes
     return () => clearInterval(interval);
-  }, [filter]);
+  }, []);
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) router.push('/login');
+    if (!session) {
+      router.push('/login');
+    } else {
+      setUser(session.user);
+    }
   };
 
   const archivePastAppointments = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!user?.email) return;
 
     const today = moment().format('YYYY-MM-DD');
     const now = moment().format('HH:mm');
@@ -57,39 +100,12 @@ export default function Appointments() {
     const { error } = await supabase
       .from('appointments')
       .update({ archived: true, archived_at: new Date().toISOString() })
-      .eq('client_email', session.user.email)
+      .eq('client_email', user.email)
       .or(`appointment_date.lt.${today},and(appointment_date.eq.${today},appointment_time.lt.${now})`)
       .eq('archived', false); // Seulement ceux pas encore archivés
 
     if (error) {
       console.error('Erreur archivage automatique:', error);
-    }
-  };
-
-  const loadAppointments = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (session) {
-      let query = supabase
-        .from('appointments')
-        .select('*')
-        .eq('client_email', session.user.email);
-
-      // Filtrer les archivés
-      if (filter === 'archived') {
-        query = query.eq('archived', true);
-      } else if (filter === 'all') {
-        query = query.eq('archived', false); // Ne montrer que les non-archivés par défaut
-      } else {
-        query = query.eq('status', filter).eq('archived', false);
-      }
-
-      query = query
-        .order('appointment_date', { ascending: false }) // RÉCENT EN HAUT
-        .order('appointment_time', { ascending: false });
-
-      const { data } = await query;
-      if (data) setAppointments(data);
     }
   };
 
@@ -103,9 +119,10 @@ export default function Appointments() {
       })
       .eq('id', id);
 
-    if (!error) {
-      loadAppointments();
+    if (error) {
+      console.error('Erreur update status:', error);
     }
+    // Pas besoin de recharger - le real-time hook s'en charge automatiquement !
   };
 
   const handleDesistement = async (apt) => {
@@ -136,9 +153,11 @@ export default function Appointments() {
       .eq('id', id);
 
     if (!error) {
-      loadAppointments();
-      alert('✅ Rendez-vous archivé');
+      showSuccess('Archivé', 'Rendez-vous archivé avec succès');
+    } else {
+      console.error('Erreur archivage:', error);
     }
+    // Pas besoin de recharger - le real-time hook s'en charge automatiquement !
   };
 
   const handleUnarchive = async (id) => {
@@ -148,9 +167,11 @@ export default function Appointments() {
       .eq('id', id);
 
     if (!error) {
-      loadAppointments();
-      alert('✅ Rendez-vous restauré');
+      showSuccess('Restauré', 'Rendez-vous restauré avec succès');
+    } else {
+      console.error('Erreur restauration:', error);
     }
+    // Pas besoin de recharger - le real-time hook s'en charge automatiquement !
   };
 
   const handleWaitlistSubmit = async (e) => {
