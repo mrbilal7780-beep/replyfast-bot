@@ -1,4 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+  authenticateRequest,
+  rateLimit,
+  validateNotificationRequest,
+  escapeHtml
+} from '../../lib/security';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -15,25 +21,56 @@ export default async function handler(req, res) {
   }
 
   try {
+    // 🔐 1. AUTHENTIFICATION
+    const { user, error: authError } = await authenticateRequest(req);
+    if (authError) {
+      return res.status(401).json({ error: authError });
+    }
+
+    // 🚦 2. RATE LIMITING (20 emails/minute par utilisateur)
+    const { allowed, retryAfter } = rateLimit(`email-notif:${user.email}`, 20, 60000);
+    if (!allowed) {
+      return res.status(429).json({
+        error: 'Too many requests',
+        retryAfter: retryAfter
+      });
+    }
+
+    // ✅ 3. VALIDATION DES ENTRÉES
+    const validation = validateNotificationRequest(req.body);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+
     const { type, recipientEmail, data } = req.body;
 
-    if (!type || !recipientEmail) {
-      return res.status(400).json({ error: 'Missing required fields: type, recipientEmail' });
-    }
+    // 🛡️ Sanitize all user data to prevent XSS
+    const safeData = {
+      clientName: escapeHtml(data.clientName),
+      appointmentDate: escapeHtml(data.appointmentDate),
+      appointmentTime: escapeHtml(data.appointmentTime),
+      service: escapeHtml(data.service),
+      clientEmail: escapeHtml(data.clientEmail),
+      clientPhone: escapeHtml(data.clientPhone),
+      senderName: escapeHtml(data.senderName),
+      message: escapeHtml(data.message),
+      address: escapeHtml(data.address),
+      reason: escapeHtml(data.reason)
+    };
 
     // Templates d'emails selon le type
     const emailTemplates = {
       appointment_reminder: {
-        subject: `Rappel: Rendez-vous ${data.appointmentDate || 'demain'}`,
+        subject: `Rappel: Rendez-vous ${safeData.appointmentDate || 'demain'}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #6366f1;">Rappel de Rendez-vous</h2>
-            <p>Bonjour ${data.clientName || 'cher client'},</p>
+            <p>Bonjour ${safeData.clientName || 'cher client'},</p>
             <p>Ceci est un rappel pour votre rendez-vous:</p>
             <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Date:</strong> ${data.appointmentDate || 'N/A'}</p>
-              <p style="margin: 5px 0;"><strong>Heure:</strong> ${data.appointmentTime || 'N/A'}</p>
-              <p style="margin: 5px 0;"><strong>Service:</strong> ${data.service || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Date:</strong> ${safeData.appointmentDate || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Heure:</strong> ${safeData.appointmentTime || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Service:</strong> ${safeData.service || 'N/A'}</p>
             </div>
             <p>Si vous devez annuler ou reporter, contactez-nous au plus vite.</p>
             <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
@@ -43,15 +80,15 @@ export default async function handler(req, res) {
         `
       },
       new_client: {
-        subject: `Nouveau client: ${data.clientName || 'Inconnu'}`,
+        subject: `Nouveau client: ${safeData.clientName || 'Inconnu'}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">Nouveau Client Enregistré</h2>
             <p>Un nouveau client s'est inscrit sur votre plateforme ReplyFast AI.</p>
             <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Nom:</strong> ${data.clientName || 'N/A'}</p>
-              <p style="margin: 5px 0;"><strong>Email:</strong> ${data.clientEmail || 'N/A'}</p>
-              <p style="margin: 5px 0;"><strong>Téléphone:</strong> ${data.clientPhone || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Nom:</strong> ${safeData.clientName || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Email:</strong> ${safeData.clientEmail || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Téléphone:</strong> ${safeData.clientPhone || 'N/A'}</p>
               <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date(data.createdAt || Date.now()).toLocaleDateString('fr-FR')}</p>
             </div>
             <p>Connectez-vous à votre dashboard pour voir plus de détails.</p>
@@ -62,16 +99,16 @@ export default async function handler(req, res) {
         `
       },
       new_message: {
-        subject: `Nouveau message de ${data.senderName || 'un client'}`,
+        subject: `Nouveau message de ${safeData.senderName || 'un client'}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #6366f1;">Nouveau Message Reçu</h2>
             <p>Vous avez reçu un nouveau message:</p>
             <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>De:</strong> ${data.senderName || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>De:</strong> ${safeData.senderName || 'N/A'}</p>
               <p style="margin: 5px 0;"><strong>Message:</strong></p>
               <p style="margin: 10px 0; padding: 15px; background: white; border-left: 4px solid #6366f1;">
-                ${data.message || 'N/A'}
+                ${safeData.message || 'N/A'}
               </p>
               <p style="margin: 5px 0; color: #6b7280; font-size: 12px;">
                 ${new Date(data.timestamp || Date.now()).toLocaleString('fr-FR')}
@@ -85,17 +122,17 @@ export default async function handler(req, res) {
         `
       },
       appointment_confirmed: {
-        subject: `Rendez-vous confirmé - ${data.appointmentDate || ''}`,
+        subject: `Rendez-vous confirmé - ${safeData.appointmentDate || ''}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">✅ Rendez-vous Confirmé</h2>
-            <p>Bonjour ${data.clientName || 'cher client'},</p>
+            <p>Bonjour ${safeData.clientName || 'cher client'},</p>
             <p>Votre rendez-vous a été confirmé avec succès!</p>
             <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Date:</strong> ${data.appointmentDate || 'N/A'}</p>
-              <p style="margin: 5px 0;"><strong>Heure:</strong> ${data.appointmentTime || 'N/A'}</p>
-              <p style="margin: 5px 0;"><strong>Service:</strong> ${data.service || 'N/A'}</p>
-              ${data.address ? `<p style="margin: 5px 0;"><strong>Adresse:</strong> ${data.address}</p>` : ''}
+              <p style="margin: 5px 0;"><strong>Date:</strong> ${safeData.appointmentDate || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Heure:</strong> ${safeData.appointmentTime || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Service:</strong> ${safeData.service || 'N/A'}</p>
+              ${safeData.address ? `<p style="margin: 5px 0;"><strong>Adresse:</strong> ${safeData.address}</p>` : ''}
             </div>
             <p>Nous avons hâte de vous accueillir!</p>
             <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
@@ -109,12 +146,12 @@ export default async function handler(req, res) {
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #ef4444;">❌ Rendez-vous Annulé</h2>
-            <p>Bonjour ${data.clientName || 'cher client'},</p>
+            <p>Bonjour ${safeData.clientName || 'cher client'},</p>
             <p>Votre rendez-vous a été annulé:</p>
             <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Date:</strong> ${data.appointmentDate || 'N/A'}</p>
-              <p style="margin: 5px 0;"><strong>Heure:</strong> ${data.appointmentTime || 'N/A'}</p>
-              ${data.reason ? `<p style="margin: 5px 0;"><strong>Raison:</strong> ${data.reason}</p>` : ''}
+              <p style="margin: 5px 0;"><strong>Date:</strong> ${safeData.appointmentDate || 'N/A'}</p>
+              <p style="margin: 5px 0;"><strong>Heure:</strong> ${safeData.appointmentTime || 'N/A'}</p>
+              ${safeData.reason ? `<p style="margin: 5px 0;"><strong>Raison:</strong> ${safeData.reason}</p>` : ''}
             </div>
             <p>N'hésitez pas à reprendre rendez-vous quand vous le souhaitez.</p>
             <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">

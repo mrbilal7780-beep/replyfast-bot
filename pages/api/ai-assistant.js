@@ -1,4 +1,11 @@
 import OpenAI from 'openai';
+import {
+  authenticateRequest,
+  rateLimit,
+  getClientIp,
+  validateAIAssistantRequest,
+  authorizeResourceAccess
+} from '../../lib/security';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -10,10 +17,32 @@ export default async function handler(req, res) {
   }
 
   try {
+    // 🔐 1. AUTHENTIFICATION
+    const { user, error: authError, supabase } = await authenticateRequest(req);
+    if (authError) {
+      return res.status(401).json({ error: authError });
+    }
+
+    // 🚦 2. RATE LIMITING (10 requêtes/minute par utilisateur)
+    const { allowed, retryAfter } = rateLimit(`ai-assistant:${user.email}`, 10, 60000);
+    if (!allowed) {
+      return res.status(429).json({
+        error: 'Too many requests',
+        retryAfter: retryAfter
+      });
+    }
+
+    // ✅ 3. VALIDATION DES ENTRÉES
+    const validation = validateAIAssistantRequest(req.body);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
+
     const { messages, context } = req.body;
 
-    if (!messages || !context) {
-      return res.status(400).json({ error: 'Missing messages or context' });
+    // 🔒 4. AUTHORIZATION - Vérifier que l'utilisateur accède à ses propres données
+    if (context.companyEmail && !authorizeResourceAccess(user, context.companyEmail)) {
+      return res.status(403).json({ error: 'Access denied to this resource' });
     }
 
     // Construire le prompt système ultra-détaillé avec TOUTES les données
