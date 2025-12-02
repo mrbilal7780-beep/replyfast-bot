@@ -4,9 +4,11 @@ import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Uplo
 import { useRouter } from 'next/router';
 import { supabase, getSession } from '../lib/supabase';
 import MobileMenu from '../components/MobileMenu';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Dashboard() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [user, setUser] = useState(null);
   const [userName, setUserName] = useState('');
   const [conversations, setConversations] = useState([]);
@@ -158,20 +160,20 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             ReplyFast AI
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Dashboard</p>
+          <p className="text-gray-400 text-sm mt-1">{t('dashboard.title')}</p>
         </div>
 
         <nav className="space-y-2">
           {[
-            { icon: MessageSquare, label: 'Conversations', path: '/dashboard', active: true },
-            { icon: Calendar, label: 'Smart RDV', path: '/appointments' },
-            { icon: Upload, label: 'Menu Manager', path: '/menu' },
-            { icon: Users, label: 'Clients', path: '/clients' },
-            { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
-            { icon: Zap, label: 'Analytics', path: '/analytics' },
-            { icon: Bot, label: 'Assistant IA', path: '/ai-assistant' },
-            { icon: Book, label: 'Guide d\'utilisation', path: '/tutorial' },
-            { icon: Settings, label: 'Paramètres', path: '/settings' },
+            { icon: MessageSquare, label: t('nav.conversations'), path: '/dashboard', active: true },
+            { icon: Calendar, label: t('nav.appointments'), path: '/appointments' },
+            { icon: Upload, label: t('nav.menu'), path: '/menu' },
+            { icon: Users, label: t('nav.clients'), path: '/clients' },
+            { icon: TrendingUp, label: t('nav.insights'), path: '/market-insights' },
+            { icon: Zap, label: t('nav.analytics'), path: '/analytics' },
+            { icon: Bot, label: t('nav.assistant'), path: '/ai-assistant' },
+            { icon: Book, label: 'Tutorial', path: '/tutorial' },
+            { icon: Settings, label: t('nav.settings'), path: '/settings' },
           ].map((item, i) => (
             <button
               key={i}
@@ -193,7 +195,7 @@ export default function Dashboard() {
           className="absolute bottom-6 left-6 right-6 flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-red-500/10 hover:text-red-500 transition-all"
         >
           <LogOut className="w-5 h-5" />
-          <span>Déconnexion</span>
+          <span>{t('nav.logout')}</span>
         </button>
       </div>
 
@@ -206,10 +208,10 @@ export default function Dashboard() {
           className="mb-6 md:mb-8"
         >
           <h2 className="text-2xl md:text-4xl font-bold text-white mb-2">
-            Bienvenue {userName}
+            {t('dashboard.welcome')} {userName}
           </h2>
           <p className="text-sm md:text-base text-gray-400">
-            Voici un aperçu de votre activité
+            {t('dashboard.activityOverview')}
           </p>
         </motion.div>
 
@@ -226,9 +228,9 @@ export default function Dashboard() {
               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <MessageSquare className="w-6 h-6 text-primary" />
               </div>
-              <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">Cliquez pour + d'infos</span>
+              <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">{t('dashboard.clickForMore')}</span>
             </div>
-            <p className="text-gray-400 text-sm mb-1">Messages totaux</p>
+            <p className="text-gray-400 text-sm mb-1">{t('dashboard.totalMessages')}</p>
             <p className="text-3xl font-bold text-white">{stats.totalMessages}</p>
           </motion.button>
 
@@ -243,9 +245,9 @@ export default function Dashboard() {
               <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Users className="w-6 h-6 text-accent" />
               </div>
-              <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity">Cliquez pour + d'infos</span>
+              <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity">{t('dashboard.clickForMore')}</span>
             </div>
-            <p className="text-gray-400 text-sm mb-1">Conversations actives</p>
+            <p className="text-gray-400 text-sm mb-1">{t('dashboard.activeConversations')}</p>
             <p className="text-3xl font-bold text-white">{stats.activeConversations}</p>
           </motion.button>
 
@@ -260,21 +262,21 @@ export default function Dashboard() {
               <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Zap className="w-6 h-6 text-secondary" />
               </div>
-              <span className="text-xs text-secondary opacity-0 group-hover:opacity-100 transition-opacity">Cliquez pour + d'infos</span>
+              <span className="text-xs text-secondary opacity-0 group-hover:opacity-100 transition-opacity">{t('dashboard.clickForMore')}</span>
             </div>
-            <p className="text-gray-400 text-sm mb-1">Taux de réponse</p>
+            <p className="text-gray-400 text-sm mb-1">{t('dashboard.responseRate')}</p>
             <p className="text-3xl font-bold text-white">{stats.responseRate}</p>
           </motion.button>
         </div>
 
         {/* Conversations List */}
         <div className="glass p-4 md:p-6 rounded-2xl">
-          <h3 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6">Conversations récentes</h3>
+          <h3 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6">{t('dashboard.recentConversations')}</h3>
 
           {conversations.length === 0 ? (
             <div className="text-center py-12">
               <MessageSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <p className="text-gray-400">Aucune conversation pour le moment</p>
+              <p className="text-gray-400">{t('dashboard.noConversations')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -355,26 +357,22 @@ export default function Dashboard() {
                       <MessageSquare className="w-8 h-8 text-primary" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-white">Messages Totaux</h3>
-                      <p className="text-gray-400">Suivi en temps réel de votre activité</p>
+                      <h3 className="text-2xl font-bold text-white">{t('dashboard.modals.messages.title')}</h3>
+                      <p className="text-gray-400">{t('dashboard.modals.messages.subtitle')}</p>
                     </div>
                   </div>
                   <div className="space-y-4 text-gray-300">
                     <p className="text-lg">
-                      <strong className="text-primary">Actuellement : {stats.totalMessages} messages</strong>
+                      <strong className="text-primary">{t('dashboard.modals.messages.currently')} : {stats.totalMessages} {t('dashboard.modals.messages.messages')}</strong>
                     </p>
-                    <p>
-                      Cette métrique représente le <strong>volume total de messages échangés</strong> entre votre entreprise et vos clients via WhatsApp. Elle inclut :
-                    </p>
+                    <p>{t('dashboard.modals.messages.description')}</p>
                     <ul className="list-disc list-inside space-y-2 pl-4">
-                      <li><strong className="text-accent">Messages reçus</strong> : Questions, demandes, confirmations de vos clients</li>
-                      <li><strong className="text-secondary">Messages envoyés</strong> : Réponses automatiques de l'IA + réponses manuelles</li>
+                      <li><strong className="text-accent">{t('dashboard.modals.messages.received')}</strong> : {t('dashboard.modals.messages.receivedDesc')}</li>
+                      <li><strong className="text-secondary">{t('dashboard.modals.messages.sent')}</strong> : {t('dashboard.modals.messages.sentDesc')}</li>
                     </ul>
                     <div className="glass p-4 rounded-xl mt-4">
-                      <p className="text-sm text-gray-400">💡 <strong className="text-white">Pourquoi c'est important ?</strong></p>
-                      <p className="text-sm mt-2">
-                        Un volume élevé de messages indique un fort engagement client. ReplyFast AI traite chaque message automatiquement 24/7, garantissant zéro message sans réponse.
-                      </p>
+                      <p className="text-sm text-gray-400">💡 <strong className="text-white">{t('dashboard.modals.messages.whyImportant')}</strong></p>
+                      <p className="text-sm mt-2">{t('dashboard.modals.messages.whyDesc')}</p>
                     </div>
                   </div>
                 </>
@@ -387,34 +385,22 @@ export default function Dashboard() {
                       <Users className="w-8 h-8 text-accent" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-white">Conversations Actives</h3>
-                      <p className="text-gray-400">Gestion intelligente de vos clients</p>
+                      <h3 className="text-2xl font-bold text-white">{t('dashboard.modals.conversations.title')}</h3>
+                      <p className="text-gray-400">{t('dashboard.modals.conversations.subtitle')}</p>
                     </div>
                   </div>
                   <div className="space-y-4 text-gray-300">
                     <p className="text-lg">
-                      <strong className="text-accent">Actuellement : {stats.activeConversations} conversations en cours</strong>
+                      <strong className="text-accent">{t('dashboard.modals.conversations.currently')} : {stats.activeConversations} {t('dashboard.modals.conversations.active')}</strong>
                     </p>
-                    <p>
-                      Une <strong>conversation active</strong> représente un fil de discussion avec un client unique. L'IA de ReplyFast maintient le contexte complet sur l'ensemble de la conversation pour offrir des réponses cohérentes et personnalisées.
-                    </p>
-                    <div className="grid grid-cols-2 gap-4 mt-4">
-                      <div className="glass p-4 rounded-xl">
-                        <p className="text-sm font-semibold text-white mb-2">✅ Avantages</p>
-                        <ul className="text-xs space-y-1">
-                          <li>• Contexte mémorisé</li>
-                          <li>• Historique complet</li>
-                          <li>• Personnalisation IA</li>
-                        </ul>
-                      </div>
-                      <div className="glass p-4 rounded-xl">
-                        <p className="text-sm font-semibold text-white mb-2">⚡ Fonctionnalités</p>
-                        <ul className="text-xs space-y-1">
-                          <li>• Renommer les clients</li>
-                          <li>• Réponses manuelles</li>
-                          <li>• Détection RDV auto</li>
-                        </ul>
-                      </div>
+                    <p>{t('dashboard.modals.conversations.description')}</p>
+                    <div className="glass p-4 rounded-xl mt-4">
+                      <p className="text-sm text-gray-400 font-semibold mb-2">{t('dashboard.modals.conversations.definition')}</p>
+                      <p className="text-sm">{t('dashboard.modals.conversations.definitionDesc')}</p>
+                    </div>
+                    <div className="glass p-4 rounded-xl">
+                      <p className="text-sm text-gray-400">💡 <strong className="text-white">{t('dashboard.modals.conversations.whyImportant')}</strong></p>
+                      <p className="text-sm mt-2">{t('dashboard.modals.conversations.whyDesc')}</p>
                     </div>
                   </div>
                 </>
@@ -427,37 +413,36 @@ export default function Dashboard() {
                       <Zap className="w-8 h-8 text-secondary" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-white">Taux de Réponse</h3>
-                      <p className="text-gray-400">Performance de votre service client</p>
+                      <h3 className="text-2xl font-bold text-white">{t('dashboard.modals.response.title')}</h3>
+                      <p className="text-gray-400">{t('dashboard.modals.response.subtitle')}</p>
                     </div>
                   </div>
                   <div className="space-y-4 text-gray-300">
                     <p className="text-lg">
-                      <strong className="text-secondary">Performance actuelle : {stats.responseRate}</strong>
+                      <strong className="text-secondary">{t('dashboard.modals.response.currently')} : {stats.responseRate} {t('dashboard.modals.response.responseRate')}</strong>
                     </p>
-                    <p>
-                      Le <strong>taux de réponse</strong> mesure le ratio entre messages envoyés et messages reçus. Un taux de 100% signifie que chaque message client reçoit une réponse.
-                    </p>
+                    <p>{t('dashboard.modals.response.description')}</p>
                     <div className="glass p-4 rounded-xl">
-                      <p className="text-sm font-semibold text-white mb-3">📊 Interprétation :</p>
+                      <p className="text-sm font-semibold text-white mb-3">📊 {t('dashboard.modals.response.interpretation')}</p>
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <span><strong className="text-green-400">≥ 100%</strong> : Excellent ! Réactivité maximale</span>
+                          <span><strong className="text-green-400">{t('dashboard.modals.response.high')}</strong> : {t('dashboard.modals.response.highDesc')}</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                          <span><strong className="text-yellow-400">70-99%</strong> : Bon, quelques messages manqués</span>
+                          <span><strong className="text-yellow-400">{t('dashboard.modals.response.medium')}</strong> : {t('dashboard.modals.response.mediumDesc')}</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                          <span><strong className="text-red-400">&lt; 70%</strong> : À améliorer, vérifiez votre configuration</span>
+                          <span><strong className="text-red-400">{t('dashboard.modals.response.low')}</strong> : {t('dashboard.modals.response.lowDesc')}</span>
                         </div>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-400 italic">
-                      💡 Avec ReplyFast AI, visez 100% grâce à l'automatisation intelligente 24/7
-                    </p>
+                    <div className="glass p-4 rounded-xl">
+                      <p className="text-sm text-gray-400">💡 <strong className="text-white">{t('dashboard.modals.response.whyImportant')}</strong></p>
+                      <p className="text-sm mt-2">{t('dashboard.modals.response.whyDesc')}</p>
+                    </div>
                   </div>
                 </>
               )}
@@ -466,7 +451,7 @@ export default function Dashboard() {
                 onClick={() => setShowFeatureModal(null)}
                 className="mt-6 w-full px-6 py-3 bg-gradient-to-r from-primary to-accent rounded-xl text-white font-semibold hover:scale-105 transition-transform"
               >
-                Compris !
+                {t('dashboard.gotIt')}
               </button>
             </motion.div>
           </motion.div>
