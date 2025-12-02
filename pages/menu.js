@@ -6,7 +6,8 @@ import { supabase } from '../lib/supabase';
 import { getSectorById } from '../lib/sectors';
 import MobileMenu from '../components/MobileMenu';
 
-// 🎯 INVENTAIRE DYNAMIQUE PAR SECTEUR
+// 🎯 TEMPLATES D'INVENTAIRE PAR SECTEUR (utilisés uniquement à l'initialisation)
+// L'inventaire réel est stocké et chargé depuis la table 'inventory_items'
 const getDefaultInventoryBySector = (sectorId) => {
   const inventories = {
     // BOUCHERIE
@@ -118,7 +119,7 @@ export default function MenuManager() {
     loadUserSector();
   }, []);
 
-  // Charger le secteur de l'utilisateur
+  // Charger le secteur de l'utilisateur et l'inventaire depuis la DB
   const loadUserSector = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
@@ -130,9 +131,79 @@ export default function MenuManager() {
 
       if (client?.sector) {
         setUserSector(client.sector);
-        // Charger l'inventaire par défaut selon le secteur
-        setInventory(getDefaultInventoryBySector(client.sector));
+        await loadInventoryFromDB(session.user.email, client.sector);
       }
+    }
+  };
+
+  // 🔥 NOUVEAU: Charger l'inventaire depuis la DB
+  const loadInventoryFromDB = async (email, sector) => {
+    try {
+      const { data: existingInventory, error } = await supabase
+        .from('inventory_items')
+        .select('*')
+        .eq('client_email', email)
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.warn('⚠️ Erreur lors du chargement de l\'inventaire:', error);
+      }
+
+      if (existingInventory && existingInventory.length > 0) {
+        // Inventaire existe en DB - le charger
+        setInventory(existingInventory);
+      } else {
+        // Pas d'inventaire en DB - initialiser avec les templates par défaut
+        const defaultItems = getDefaultInventoryBySector(sector);
+
+        // Sauvegarder les items par défaut en DB
+        const { data: insertedItems, error: insertError } = await supabase
+          .from('inventory_items')
+          .insert(
+            defaultItems.map(item => ({
+              client_email: email,
+              name: item.name,
+              unit: item.unit,
+              sold_today: item.sold_today,
+              stock: item.stock
+            }))
+          )
+          .select();
+
+        if (!insertError && insertedItems) {
+          setInventory(insertedItems);
+        } else {
+          console.error('❌ Erreur insertion inventaire:', insertError);
+          // Fallback: utiliser les items par défaut en local seulement
+          setInventory(defaultItems);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur loadInventoryFromDB:', error);
+      // Fallback: utiliser l'inventaire par défaut
+      setInventory(getDefaultInventoryBySector(sector));
+    }
+  };
+
+  // 🔥 NOUVEAU: Sauvegarder un item d'inventaire dans la DB
+  const saveInventoryItem = async (item) => {
+    try {
+      const { error } = await supabase
+        .from('inventory_items')
+        .update({
+          name: item.name,
+          unit: item.unit,
+          sold_today: item.sold_today,
+          stock: item.stock,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', item.id);
+
+      if (error) {
+        console.error('❌ Erreur sauvegarde inventaire:', error);
+      }
+    } catch (error) {
+      console.error('❌ Erreur saveInventoryItem:', error);
     }
   };
 
@@ -943,25 +1014,40 @@ export default function MenuManager() {
                           min="0"
                           placeholder="+ vente"
                           className="w-24 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:border-accent"
-                          onKeyPress={(e) => {
+                          onKeyPress={async (e) => {
                             if (e.key === 'Enter') {
                               const value = parseFloat(e.target.value);
                               if (value > 0) {
+                                const updatedItem = {
+                                  ...item,
+                                  sold_today: item.sold_today + value,
+                                  stock: Math.max(0, item.stock - value)
+                                };
+
+                                // Mettre à jour l'état local
                                 setInventory(inventory.map(inv =>
-                                  inv.id === item.id
-                                    ? { ...inv, sold_today: inv.sold_today + value, stock: Math.max(0, inv.stock - value) }
-                                    : inv
+                                  inv.id === item.id ? updatedItem : inv
                                 ));
+
+                                // 🔥 Sauvegarder dans la DB
+                                await saveInventoryItem(updatedItem);
+
                                 e.target.value = '';
                               }
                             }
                           }}
                         />
                         <button
-                          onClick={() => {
+                          onClick={async () => {
+                            const updatedItem = { ...item, sold_today: 0 };
+
+                            // Mettre à jour l'état local
                             setInventory(inventory.map(inv =>
-                              inv.id === item.id ? { ...inv, sold_today: 0 } : inv
+                              inv.id === item.id ? updatedItem : inv
                             ));
+
+                            // 🔥 Sauvegarder dans la DB
+                            await saveInventoryItem(updatedItem);
                           }}
                           className="px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg transition-colors text-xs"
                           title="Réinitialiser ventes"
