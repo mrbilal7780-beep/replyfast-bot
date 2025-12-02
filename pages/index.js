@@ -136,15 +136,25 @@ export default function Home() {
           animate={{ opacity: 1 }}
           className="text-center"
         >
-          {/* Badge */}
+          {/* Badge OFFRE SPÉCIALE */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-2 glass px-4 py-2 rounded-full mb-8"
+            className="inline-flex flex-col gap-3 items-center mb-8"
           >
-            <Sparkles className="w-4 h-4 text-accent" />
-            <span className="text-sm">Intelligence artificielle de nouvelle génération</span>
+            <div className="px-8 py-4 bg-gradient-to-r from-accent via-secondary to-primary rounded-2xl shadow-2xl shadow-accent/50 animate-pulse">
+              <p className="text-3xl md:text-4xl font-black text-white text-center">
+                🎁 1 MOIS GRATUIT 🎁
+              </p>
+              <p className="text-sm text-white/80 text-center mt-1">
+                30 jours d'essai complet • Sans carte bancaire
+              </p>
+            </div>
+            <div className="glass px-4 py-2 rounded-full">
+              <Sparkles className="w-4 h-4 text-accent inline mr-2" />
+              <span className="text-sm">Intelligence artificielle de nouvelle génération</span>
+            </div>
           </motion.div>
 
           {/* Title */}
@@ -204,7 +214,7 @@ export default function Home() {
               className="group relative px-8 py-4 bg-gradient-to-r from-primary to-secondary rounded-full text-white font-semibold text-lg hover:scale-105 transition-transform shadow-lg shadow-primary/50"
             >
               <span className="flex items-center gap-2">
-                Essai gratuit 14 jours
+                Commencer - 1 MOIS GRATUIT
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
             </button>
