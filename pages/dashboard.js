@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, Edit2, Bot, Book } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase, getSession } from '../lib/supabase';
@@ -17,6 +17,7 @@ export default function Dashboard() {
   });
   const [editingConv, setEditingConv] = useState(null);
   const [newName, setNewName] = useState('');
+  const [showFeatureModal, setShowFeatureModal] = useState(null); // null, 'messages', 'conversations', 'response'
 
   useEffect(() => {
     checkUser();
@@ -212,52 +213,58 @@ export default function Dashboard() {
           </p>
         </motion.div>
 
-        {/* Stats Cards - 1 column on mobile, 3 on desktop */}
+        {/* Stats Cards - 1 column on mobile, 3 on desktop - CLICKABLES */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
-          <motion.div
+          <motion.button
+            onClick={() => setShowFeatureModal('messages')}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
-            className="glass p-6 rounded-2xl hover:scale-105 transition-transform group"
+            className="glass p-6 rounded-2xl hover:scale-105 transition-all group cursor-pointer text-left hover:border-2 hover:border-primary/50"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <MessageSquare className="w-6 h-6 text-primary" />
               </div>
+              <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">Cliquez pour + d'infos</span>
             </div>
             <p className="text-gray-400 text-sm mb-1">Messages totaux</p>
             <p className="text-3xl font-bold text-white">{stats.totalMessages}</p>
-          </motion.div>
+          </motion.button>
 
-          <motion.div
+          <motion.button
+            onClick={() => setShowFeatureModal('conversations')}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="glass p-6 rounded-2xl hover:scale-105 transition-transform group"
+            className="glass p-6 rounded-2xl hover:scale-105 transition-all group cursor-pointer text-left hover:border-2 hover:border-accent/50"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Users className="w-6 h-6 text-accent" />
               </div>
+              <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity">Cliquez pour + d'infos</span>
             </div>
             <p className="text-gray-400 text-sm mb-1">Conversations actives</p>
             <p className="text-3xl font-bold text-white">{stats.activeConversations}</p>
-          </motion.div>
+          </motion.button>
 
-          <motion.div
+          <motion.button
+            onClick={() => setShowFeatureModal('response')}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3 }}
-            className="glass p-6 rounded-2xl hover:scale-105 transition-transform group"
+            className="glass p-6 rounded-2xl hover:scale-105 transition-all group cursor-pointer text-left hover:border-2 hover:border-secondary/50"
           >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Zap className="w-6 h-6 text-secondary" />
               </div>
+              <span className="text-xs text-secondary opacity-0 group-hover:opacity-100 transition-opacity">Cliquez pour + d'infos</span>
             </div>
             <p className="text-gray-400 text-sm mb-1">Taux de réponse</p>
             <p className="text-3xl font-bold text-white">{stats.responseRate}</p>
-          </motion.div>
+          </motion.button>
         </div>
 
         {/* Conversations List */}
@@ -323,6 +330,148 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* 📊 MODAL FEATURES - Descriptions professionnelles */}
+      <AnimatePresence>
+        {showFeatureModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowFeatureModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="glass p-8 rounded-3xl max-w-2xl w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {showFeatureModal === 'messages' && (
+                <>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                      <MessageSquare className="w-8 h-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">Messages Totaux</h3>
+                      <p className="text-gray-400">Suivi en temps réel de votre activité</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4 text-gray-300">
+                    <p className="text-lg">
+                      <strong className="text-primary">Actuellement : {stats.totalMessages} messages</strong>
+                    </p>
+                    <p>
+                      Cette métrique représente le <strong>volume total de messages échangés</strong> entre votre entreprise et vos clients via WhatsApp. Elle inclut :
+                    </p>
+                    <ul className="list-disc list-inside space-y-2 pl-4">
+                      <li><strong className="text-accent">Messages reçus</strong> : Questions, demandes, confirmations de vos clients</li>
+                      <li><strong className="text-secondary">Messages envoyés</strong> : Réponses automatiques de l'IA + réponses manuelles</li>
+                    </ul>
+                    <div className="glass p-4 rounded-xl mt-4">
+                      <p className="text-sm text-gray-400">💡 <strong className="text-white">Pourquoi c'est important ?</strong></p>
+                      <p className="text-sm mt-2">
+                        Un volume élevé de messages indique un fort engagement client. ReplyFast AI traite chaque message automatiquement 24/7, garantissant zéro message sans réponse.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {showFeatureModal === 'conversations' && (
+                <>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
+                      <Users className="w-8 h-8 text-accent" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">Conversations Actives</h3>
+                      <p className="text-gray-400">Gestion intelligente de vos clients</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4 text-gray-300">
+                    <p className="text-lg">
+                      <strong className="text-accent">Actuellement : {stats.activeConversations} conversations en cours</strong>
+                    </p>
+                    <p>
+                      Une <strong>conversation active</strong> représente un fil de discussion avec un client unique. L'IA de ReplyFast maintient le contexte complet sur l'ensemble de la conversation pour offrir des réponses cohérentes et personnalisées.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div className="glass p-4 rounded-xl">
+                        <p className="text-sm font-semibold text-white mb-2">✅ Avantages</p>
+                        <ul className="text-xs space-y-1">
+                          <li>• Contexte mémorisé</li>
+                          <li>• Historique complet</li>
+                          <li>• Personnalisation IA</li>
+                        </ul>
+                      </div>
+                      <div className="glass p-4 rounded-xl">
+                        <p className="text-sm font-semibold text-white mb-2">⚡ Fonctionnalités</p>
+                        <ul className="text-xs space-y-1">
+                          <li>• Renommer les clients</li>
+                          <li>• Réponses manuelles</li>
+                          <li>• Détection RDV auto</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {showFeatureModal === 'response' && (
+                <>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 rounded-full bg-secondary/20 flex items-center justify-center">
+                      <Zap className="w-8 h-8 text-secondary" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">Taux de Réponse</h3>
+                      <p className="text-gray-400">Performance de votre service client</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4 text-gray-300">
+                    <p className="text-lg">
+                      <strong className="text-secondary">Performance actuelle : {stats.responseRate}</strong>
+                    </p>
+                    <p>
+                      Le <strong>taux de réponse</strong> mesure le ratio entre messages envoyés et messages reçus. Un taux de 100% signifie que chaque message client reçoit une réponse.
+                    </p>
+                    <div className="glass p-4 rounded-xl">
+                      <p className="text-sm font-semibold text-white mb-3">📊 Interprétation :</p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          <span><strong className="text-green-400">≥ 100%</strong> : Excellent ! Réactivité maximale</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                          <span><strong className="text-yellow-400">70-99%</strong> : Bon, quelques messages manqués</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          <span><strong className="text-red-400">&lt; 70%</strong> : À améliorer, vérifiez votre configuration</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-400 italic">
+                      💡 Avec ReplyFast AI, visez 100% grâce à l'automatisation intelligente 24/7
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <button
+                onClick={() => setShowFeatureModal(null)}
+                className="mt-6 w-full px-6 py-3 bg-gradient-to-r from-primary to-accent rounded-xl text-white font-semibold hover:scale-105 transition-transform"
+              >
+                Compris !
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
