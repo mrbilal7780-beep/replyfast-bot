@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Bot, Send, Loader, Sparkles, TrendingUp, Calendar, DollarSign, MessageSquare, Users } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
+import { getSectorById } from '../lib/sectors';
 
 export default function AIAssistant() {
   const router = useRouter();
@@ -62,8 +63,12 @@ export default function AIAssistant() {
     const sentMessages = messages?.filter(m => m.direction === 'sent').length || 0;
     const receivedMessages = messages?.filter(m => m.direction === 'received').length || 0;
 
+    // 🎯 FIX: Obtenir le nom lisible du secteur au lieu de l'ID
+    const sectorInfo = client?.sector ? getSectorById(client.sector) : null;
+    const sectorName = sectorInfo?.name || 'Non défini';
+
     setContext({
-      sector: client?.sector || 'Non défini',
+      sector: sectorName,
       companyName: client?.company_name || businessInfo?.nom_entreprise || 'Votre entreprise',
       totalAppointments: appointments?.length || 0,
       confirmedAppointments: confirmedRdv,
