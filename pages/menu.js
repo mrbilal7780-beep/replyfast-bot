@@ -3,7 +3,86 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, Upload, Save, Trash2, TrendingUp, Tag, Plus, Edit2, X, Bot, Package, TrendingDown, TrendingUp as TrendingUpIcon } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
+import { getSectorById } from '../lib/sectors';
 import MobileMenu from '../components/MobileMenu';
+
+// 🎯 INVENTAIRE DYNAMIQUE PAR SECTEUR
+const getDefaultInventoryBySector = (sectorId) => {
+  const inventories = {
+    // BOUCHERIE
+    boucherie: [
+      { id: 1, name: 'Côtelettes', unit: 'kg', sold_today: 0, stock: 100 },
+      { id: 2, name: 'Entrecôte', unit: 'kg', sold_today: 0, stock: 50 },
+      { id: 3, name: 'Poulet', unit: 'unités', sold_today: 0, stock: 30 }
+    ],
+    // FROMAGERIE
+    fromagerie: [
+      { id: 1, name: 'Camembert', unit: 'unités', sold_today: 0, stock: 40 },
+      { id: 2, name: 'Comté', unit: 'kg', sold_today: 0, stock: 25 },
+      { id: 3, name: 'Roquefort', unit: 'kg', sold_today: 0, stock: 15 }
+    ],
+    // COIFFURE
+    coiffure: [
+      { id: 1, name: 'Coupes réalisées', unit: 'coupes', sold_today: 0, stock: 999 },
+      { id: 2, name: 'Colorations', unit: 'services', sold_today: 0, stock: 999 },
+      { id: 3, name: 'Brushings', unit: 'services', sold_today: 0, stock: 999 }
+    ],
+    // BEAUTÉ
+    beaute: [
+      { id: 1, name: 'Soins visage', unit: 'services', sold_today: 0, stock: 999 },
+      { id: 2, name: 'Manucures', unit: 'services', sold_today: 0, stock: 999 },
+      { id: 3, name: 'Épilations', unit: 'services', sold_today: 0, stock: 999 }
+    ],
+    // RESTAURANT
+    restaurant: [
+      { id: 1, name: 'Plat du jour', unit: 'portions', sold_today: 0, stock: 50 },
+      { id: 2, name: 'Desserts', unit: 'portions', sold_today: 0, stock: 30 },
+      { id: 3, name: 'Boissons', unit: 'unités', sold_today: 0, stock: 100 }
+    ],
+    // CAFÉ / BOULANGERIE
+    cafe: [
+      { id: 1, name: 'Croissants', unit: 'unités', sold_today: 0, stock: 80 },
+      { id: 2, name: 'Pain', unit: 'baguettes', sold_today: 0, stock: 120 },
+      { id: 3, name: 'Pâtisseries', unit: 'unités', sold_today: 0, stock: 50 }
+    ],
+    // ÉPICERIE
+    epicerie: [
+      { id: 1, name: 'Fruits & Légumes', unit: 'kg', sold_today: 0, stock: 200 },
+      { id: 2, name: 'Produits laitiers', unit: 'unités', sold_today: 0, stock: 150 },
+      { id: 3, name: 'Pain & Viennoiseries', unit: 'unités', sold_today: 0, stock: 100 }
+    ],
+    // PHARMACIE
+    pharmacie: [
+      { id: 1, name: 'Ordonnances traitées', unit: 'ordonnances', sold_today: 0, stock: 999 },
+      { id: 2, name: 'Produits OTC', unit: 'unités', sold_today: 0, stock: 500 },
+      { id: 3, name: 'Parapharmacie', unit: 'unités', sold_today: 0, stock: 300 }
+    ],
+    // SPORT / FITNESS
+    fitness: [
+      { id: 1, name: 'Cours collectifs', unit: 'séances', sold_today: 0, stock: 999 },
+      { id: 2, name: 'Coaching privé', unit: 'séances', sold_today: 0, stock: 20 },
+      { id: 3, name: 'Inscriptions', unit: 'membres', sold_today: 0, stock: 50 }
+    ],
+    sport_club: [
+      { id: 1, name: 'Inscriptions', unit: 'membres', sold_today: 0, stock: 100 },
+      { id: 2, name: 'Maillots', unit: 'unités', sold_today: 0, stock: 50 },
+      { id: 3, name: 'Équipements', unit: 'unités', sold_today: 0, stock: 30 }
+    ],
+    // GARAGE
+    garage: [
+      { id: 1, name: 'Révisions', unit: 'services', sold_today: 0, stock: 10 },
+      { id: 2, name: 'Réparations', unit: 'interventions', sold_today: 0, stock: 15 },
+      { id: 3, name: 'Pneus', unit: 'jeux', sold_today: 0, stock: 20 }
+    ]
+  };
+
+  // Retourner l'inventaire du secteur, ou un inventaire générique par défaut
+  return inventories[sectorId] || [
+    { id: 1, name: 'Produit 1', unit: 'unités', sold_today: 0, stock: 100 },
+    { id: 2, name: 'Produit 2', unit: 'unités', sold_today: 0, stock: 75 },
+    { id: 3, name: 'Produit 3', unit: 'unités', sold_today: 0, stock: 50 }
+  ];
+};
 
 export default function MenuManager() {
   const router = useRouter();
@@ -28,18 +107,34 @@ export default function MenuManager() {
     end_date: ''
   });
 
-  // Inventaire
-  const [inventory, setInventory] = useState([
-    { id: 1, name: 'Côtelettes', unit: 'kg', sold_today: 0, stock: 100 },
-    { id: 2, name: 'Entrecôte', unit: 'kg', sold_today: 0, stock: 50 },
-    { id: 3, name: 'Poulet', unit: 'unités', sold_today: 0, stock: 30 }
-  ]);
+  // Inventaire (dynamique selon le secteur)
+  const [inventory, setInventory] = useState([]);
+  const [userSector, setUserSector] = useState(null);
 
   useEffect(() => {
     checkUser();
     loadMenu();
     loadOffers();
+    loadUserSector();
   }, []);
+
+  // Charger le secteur de l'utilisateur
+  const loadUserSector = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('sector')
+        .eq('email', session.user.email)
+        .single();
+
+      if (client?.sector) {
+        setUserSector(client.sector);
+        // Charger l'inventaire par défaut selon le secteur
+        setInventory(getDefaultInventoryBySector(client.sector));
+      }
+    }
+  };
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();

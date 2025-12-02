@@ -499,24 +499,59 @@ export default function Appointments() {
             </h3>
             <div className="space-y-3">
               {selectedAppointments.map((apt) => (
-                <div key={apt.id} className="bg-white/5 p-4 rounded-xl flex items-center justify-between">
-                  <div>
-                    <p className="text-white font-semibold">{apt.customer_name || apt.customer_phone}</p>
-                    <p className="text-sm text-gray-400">
-                      {apt.appointment_time} - {apt.service || 'RDV'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
+                <div key={apt.id} className="bg-white/5 p-4 rounded-xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-white font-semibold">{apt.customer_name || apt.customer_phone}</p>
+                      <p className="text-sm text-gray-400">
+                        {apt.appointment_time} - {apt.service || 'RDV'}
+                      </p>
+                      {apt.customer_phone && (
+                        <p className="text-xs text-gray-500 mt-1">📞 {apt.customer_phone}</p>
+                      )}
+                    </div>
                     <span className={`px-3 py-1 rounded-full text-xs border ${getStatusColor(apt.status)}`}>
                       {getStatusLabel(apt.status)}
                     </span>
-                    {apt.status === 'confirmed' && (
-                      <button
-                        onClick={() => handleDesistement(apt)}
-                        className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm transition-colors"
-                      >
-                        Désistement
-                      </button>
+                  </div>
+
+                  {/* BOUTONS D'ACTION */}
+                  <div className="flex flex-wrap gap-2">
+                    {apt.status === 'pending' && !apt.archived && (
+                      <>
+                        <button
+                          onClick={() => updateStatus(apt.id, 'confirmed')}
+                          className="px-3 py-1.5 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Confirmer
+                        </button>
+                        <button
+                          onClick={() => updateStatus(apt.id, 'cancelled')}
+                          className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Annuler
+                        </button>
+                      </>
+                    )}
+                    {apt.status === 'confirmed' && !apt.archived && (
+                      <>
+                        <button
+                          onClick={() => updateStatus(apt.id, 'completed')}
+                          className="px-3 py-1.5 bg-secondary/20 hover:bg-secondary/30 text-secondary rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Terminé
+                        </button>
+                        <button
+                          onClick={() => handleDesistement(apt)}
+                          className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                        >
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          Désistement
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

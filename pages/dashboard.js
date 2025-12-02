@@ -205,7 +205,7 @@ export default function Dashboard() {
           className="mb-6 md:mb-8"
         >
           <h2 className="text-2xl md:text-4xl font-bold text-white mb-2">
-            Bienvenue {userName} 👋
+            Bienvenue {userName}
           </h2>
           <p className="text-sm md:text-base text-gray-400">
             Voici un aperçu de votre activité
