@@ -104,9 +104,10 @@ export default function Dashboard() {
   const handleRenameConversation = async (convId) => {
     if (!newName.trim()) return;
 
+    // 🎯 FIX: Mettre à jour customer_name_override pour persistance du nom
     await supabase
       .from('conversations')
-      .update({ customer_name: newName })
+      .update({ customer_name_override: newName })
       .eq('id', convId);
 
     setEditingConv(null);
@@ -290,10 +291,8 @@ export default function Dashboard() {
                 >
                   <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
                     <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-white font-bold text-base md:text-lg flex-shrink-0">
-                      {conv.customer_name
-                        ? conv.customer_name.charAt(0).toUpperCase()
-                        : '?'
-                      }
+                      {/* 🎯 FIX: Utiliser customer_name_override en priorité */}
+                      {(conv.customer_name_override || conv.customer_name || conv.customer_phone || 'C').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       {editingConv === conv.id ? (
@@ -309,7 +308,8 @@ export default function Dashboard() {
                         />
                       ) : (
                         <p className="text-white font-semibold truncate">
-                          {conv.customer_name || conv.customer_phone || 'Client'}
+                          {/* 🎯 FIX: Utiliser customer_name_override en priorité */}
+                          {conv.customer_name_override || conv.customer_name || conv.customer_phone || 'Client'}
                         </p>
                       )}
                       <p className="text-gray-400 text-sm truncate">{conv.customer_phone}</p>
@@ -320,7 +320,8 @@ export default function Dashboard() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setEditingConv(conv.id);
-                      setNewName(conv.customer_name || '');
+                      // 🎯 FIX: Charger customer_name_override en priorité
+                      setNewName(conv.customer_name_override || conv.customer_name || '');
                     }}
                     className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors opacity-60 md:opacity-0 md:group-hover:opacity-100 flex-shrink-0"
                   >
