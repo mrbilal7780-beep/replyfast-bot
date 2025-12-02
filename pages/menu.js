@@ -12,6 +12,8 @@ export default function MenuManager() {
   const [menuText, setMenuText] = useState('');
   const [success, setSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('menu'); // 'menu', 'offers', ou 'inventory'
+  const [uploadedFileUrl, setUploadedFileUrl] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
 
   // Offres spéciales
   const [offers, setOffers] = useState([]);
@@ -59,6 +61,7 @@ export default function MenuManager() {
 
       if (data) {
         setMenuText(data.menu_text || '');
+        setUploadedFileUrl(data.file_url || null);
       }
     }
   };
@@ -78,19 +81,179 @@ export default function MenuManager() {
     }
   };
 
+  // 🖼️ Compression d'image
+  const compressImage = (file, maxSizeMB = 2) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Réduire si trop grand
+          const MAX_WIDTH = 1920;
+          const MAX_HEIGHT = 1920;
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              resolve(new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              }));
+            },
+            'image/jpeg',
+            0.85 // Qualité 85%
+          );
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const isPDF = file.type === 'application/pdf';
-    const isImage = file.type.startsWith('image/');
+    setUploadError(null);
+    setLoading(true);
 
-    if (isPDF) {
-      alert('📄 Upload PDF détecté!\n\nL\'extraction automatique de texte depuis PDF sera implémentée prochainement.\n\nPour l\'instant, saisissez votre menu manuellement ci-dessous.');
-    } else if (isImage) {
-      alert('📷 Upload d\'image détecté!\n\nL\'OCR (reconnaissance de texte) sera implémenté prochainement.\n\nPour l\'instant, saisissez votre menu manuellement ci-dessous.');
-    } else {
-      alert('❌ Format de fichier non supporté.\n\nUtilisez: PNG, JPG, JPEG ou PDF');
+    try {
+      // 🔍 Validation du type de fichier
+      const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        throw new Error('❌ Format non supporté. Utilisez: PNG, JPG, JPEG ou PDF');
+      }
+
+      // 🔍 Validation de la taille (10MB max)
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+      if (file.size > MAX_SIZE) {
+        throw new Error('❌ Fichier trop volumineux. Maximum: 10MB');
+      }
+
+      let fileToUpload = file;
+
+      // 🖼️ Compression des images
+      if (file.type.startsWith('image/')) {
+        console.log('🖼️ Compression de l\'image...');
+        fileToUpload = await compressImage(file);
+        console.log(`✅ Taille réduite: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(fileToUpload.size / 1024 / 1024).toFixed(2)}MB`);
+      }
+
+      // 📤 Upload vers Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `menu-${user.email}-${Date.now()}.${fileExt}`;
+      const filePath = `menus/${fileName}`;
+
+      console.log('📤 Upload vers Supabase Storage:', filePath);
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('menu-files')
+        .upload(filePath, fileToUpload, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        // Si le bucket n'existe pas, créer et réessayer
+        if (uploadError.message.includes('not found')) {
+          console.log('📦 Création du bucket menu-files...');
+          const { error: bucketError } = await supabase.storage.createBucket('menu-files', {
+            public: true,
+            fileSizeLimit: MAX_SIZE
+          });
+
+          if (bucketError && !bucketError.message.includes('already exists')) {
+            throw new Error('❌ Erreur lors de la création du bucket: ' + bucketError.message);
+          }
+
+          // Réessayer l'upload
+          const { data: retryData, error: retryError } = await supabase.storage
+            .from('menu-files')
+            .upload(filePath, fileToUpload, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (retryError) throw retryError;
+        } else {
+          throw uploadError;
+        }
+      }
+
+      // 🔗 Récupérer l'URL publique
+      const { data: { publicUrl } } = supabase.storage
+        .from('menu-files')
+        .getPublicUrl(filePath);
+
+      console.log('✅ Fichier uploadé avec succès:', publicUrl);
+      setUploadedFileUrl(publicUrl);
+
+      // 💾 Sauvegarder l'URL dans la base de données
+      const { data: existingMenu } = await supabase
+        .from('menus')
+        .select('*')
+        .eq('client_email', user.email)
+        .single();
+
+      if (existingMenu) {
+        await supabase
+          .from('menus')
+          .update({
+            file_url: publicUrl,
+            file_type: file.type,
+            updated_at: new Date().toISOString()
+          })
+          .eq('client_email', user.email);
+      } else {
+        await supabase
+          .from('menus')
+          .insert([{
+            client_email: user.email,
+            file_url: publicUrl,
+            file_type: file.type,
+            menu_text: menuText || ''
+          }]);
+      }
+
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 5000);
+
+      // 📄 Message spécifique selon le type
+      if (file.type === 'application/pdf') {
+        alert('✅ PDF uploadé avec succès!\n\n📄 Le fichier est accessible dans votre menu.\n\nℹ️ L\'extraction automatique de texte sera ajoutée prochainement.');
+      } else {
+        alert('✅ Image uploadée avec succès!\n\n📷 Le fichier est accessible dans votre menu.\n\nℹ️ L\'OCR (reconnaissance de texte) sera ajouté prochainement.');
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur upload:', error);
+      setUploadError(error.message);
+      alert(error.message);
+    } finally {
+      setLoading(false);
+      // Reset input
+      e.target.value = '';
     }
   };
 
@@ -408,13 +571,67 @@ export default function MenuManager() {
                     accept="image/*,.pdf,application/pdf"
                     onChange={handleImageUpload}
                     className="hidden"
+                    disabled={loading}
                   />
-                  <div className="border-2 border-dashed border-white/20 rounded-xl p-8 hover:border-primary transition-colors cursor-pointer text-center">
+                  <div className={`border-2 border-dashed border-white/20 rounded-xl p-8 hover:border-primary transition-colors cursor-pointer text-center ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <Upload className="w-12 h-12 text-primary mx-auto mb-3" />
-                    <p className="text-white font-semibold mb-1">Cliquez pour uploader</p>
+                    <p className="text-white font-semibold mb-1">
+                      {loading ? 'Upload en cours...' : 'Cliquez pour uploader'}
+                    </p>
                     <p className="text-gray-400 text-sm">PNG, JPG, PDF jusqu'à 10MB</p>
                   </div>
                 </label>
+
+                {/* Prévisualisation du fichier uploadé */}
+                {uploadedFileUrl && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-6 p-4 bg-white/5 border border-accent/30 rounded-xl"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center">
+                          {uploadedFileUrl.includes('.pdf') ? (
+                            <span className="text-2xl">📄</span>
+                          ) : (
+                            <span className="text-2xl">🖼️</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-white font-semibold">Fichier uploadé</p>
+                          <p className="text-gray-400 text-sm">
+                            {uploadedFileUrl.includes('.pdf') ? 'Document PDF' : 'Image'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <a
+                          href={uploadedFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors text-sm"
+                        >
+                          Voir
+                        </a>
+                        <button
+                          onClick={async () => {
+                            if (confirm('Supprimer le fichier uploadé?')) {
+                              await supabase
+                                .from('menus')
+                                .update({ file_url: null, file_type: null })
+                                .eq('client_email', user.email);
+                              setUploadedFileUrl(null);
+                            }
+                          }}
+                          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg transition-colors text-sm"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               <div className="glass p-6 rounded-3xl mb-6">
