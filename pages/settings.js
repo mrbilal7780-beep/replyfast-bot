@@ -123,9 +123,9 @@ export default function SettingsPage() {
     // Charger et appliquer le thème depuis localStorage (défaut: dark)
     const savedTheme = localStorage.getItem('replyfast_theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
-    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.remove('dark', 'light', 'cyber');
     document.documentElement.classList.add(savedTheme);
-    document.body.classList.remove('dark', 'light');
+    document.body.classList.remove('dark', 'light', 'cyber');
     document.body.classList.add(savedTheme);
     setPreferences(prev => ({ ...prev, theme: savedTheme }));
 
@@ -620,9 +620,9 @@ export default function SettingsPage() {
 
       // Appliquer le thème ET le sauvegarder dans localStorage
       document.documentElement.setAttribute('data-theme', preferences.theme);
-      document.documentElement.classList.remove('dark', 'light');
+      document.documentElement.classList.remove('dark', 'light', 'cyber');
       document.documentElement.classList.add(preferences.theme);
-      document.body.classList.remove('dark', 'light');
+      document.body.classList.remove('dark', 'light', 'cyber');
       document.body.classList.add(preferences.theme);
       localStorage.setItem('replyfast_theme', preferences.theme);
 
@@ -1405,7 +1405,7 @@ export default function SettingsPage() {
                   <label className="block text-white font-semibold mb-3">
                     Thème de l'interface
                   </label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <button
                       onClick={() => setPreferences({ ...preferences, theme: 'dark' })}
                       className={`p-4 rounded-xl border-2 transition-all ${
@@ -1426,8 +1426,20 @@ export default function SettingsPage() {
                           : 'border-white/10 bg-white/5 hover:border-white/20'
                       }`}
                     >
-                      <div className="w-full h-20 rounded-lg bg-gradient-to-br from-gray-100 to-white mb-3"></div>
+                      <div className="w-full h-20 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 mb-3"></div>
                       <p className="text-white font-semibold">Clair</p>
+                    </button>
+
+                    <button
+                      onClick={() => setPreferences({ ...preferences, theme: 'cyber' })}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        preferences.theme === 'cyber'
+                          ? 'border-cyan-400 bg-cyan-400/20'
+                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="w-full h-20 rounded-lg bg-gradient-to-br from-black via-cyan-900 to-black mb-3 border border-cyan-400/50"></div>
+                      <p className="text-white font-semibold">🚀 Cyber</p>
                     </button>
                   </div>
                 </div>

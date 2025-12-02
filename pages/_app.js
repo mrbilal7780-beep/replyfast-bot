@@ -24,9 +24,9 @@ function MyApp({ Component, pageProps }) {
 
     // Appliquer TOUS les attributs pour garantir la cohérence
     document.documentElement.setAttribute('data-theme', savedTheme);
-    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.remove('dark', 'light', 'cyber');
     document.documentElement.classList.add(savedTheme);
-    document.body.classList.remove('dark', 'light');
+    document.body.classList.remove('dark', 'light', 'cyber');
     document.body.classList.add(savedTheme);
 
     setTheme(savedTheme);

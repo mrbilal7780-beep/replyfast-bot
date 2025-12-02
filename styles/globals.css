@@ -19,13 +19,25 @@
   --border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* THÈME CLAIR - Contraste amélioré */
+/* THÈME CLAIR - Contraste amélioré avec fond gris doux */
 [data-theme="light"] {
-  --bg-main: #ffffff;
-  --bg-glass: rgba(0, 0, 0, 0.05);
-  --text-primary: #0a0a0a;
-  --text-secondary: #374151;
-  --border-color: rgba(0, 0, 0, 0.15);
+  --bg-main: #f3f4f6;
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --border-color: rgba(0, 0, 0, 0.1);
+}
+
+/* THÈME CYBER BLACK - Style futuriste néon */
+[data-theme="cyber"] {
+  --bg-main: #000000;
+  --bg-glass: rgba(0, 255, 255, 0.05);
+  --text-primary: #00ffff;
+  --text-secondary: #00ff00;
+  --border-color: rgba(0, 255, 255, 0.3);
+  --color-primary: #00ffff;
+  --color-secondary: #ff00ff;
+  --color-accent: #00ff00;
 }
 
 body {
