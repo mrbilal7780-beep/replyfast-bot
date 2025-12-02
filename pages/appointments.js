@@ -435,8 +435,20 @@ export default function Appointments() {
 
         {/* Vue Calendrier */}
         {viewMode === 'calendar' && (
-          <div className="glass p-6 rounded-3xl mb-6">
-            <div style={{ height: '600px' }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass p-8 rounded-3xl mb-6 border border-white/10 shadow-2xl"
+          >
+            <div className="mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <CalendarIcon className="w-6 h-6 text-primary" />
+                Vue Calendrier
+              </h3>
+              <p className="text-gray-400 text-sm mt-1">Cliquez sur une date pour voir les détails</p>
+            </div>
+
+            <div style={{ height: '600px' }} className="calendar-container">
               <Calendar
                 localizer={localizer}
                 events={calendarEvents}
@@ -464,73 +476,144 @@ export default function Appointments() {
               />
             </div>
 
-            {/* Légende */}
-            <div className="flex gap-6 mt-6 pt-6 border-t border-white/10">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-primary"></div>
-                <span className="text-sm text-gray-400">En attente</span>
+            {/* Légende améliorée */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-white/10">
+              <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-xl border border-primary/30">
+                <div className="w-3 h-3 rounded-full bg-primary shadow-lg shadow-primary/50"></div>
+                <div>
+                  <span className="text-sm font-semibold text-white">En attente</span>
+                  <p className="text-xs text-gray-400">{appointments.filter(a => a.status === 'pending').length} RDV</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-accent"></div>
-                <span className="text-sm text-gray-400">Confirmé</span>
+              <div className="flex items-center gap-3 p-3 bg-accent/10 rounded-xl border border-accent/30">
+                <div className="w-3 h-3 rounded-full bg-accent shadow-lg shadow-accent/50"></div>
+                <div>
+                  <span className="text-sm font-semibold text-white">Confirmé</span>
+                  <p className="text-xs text-gray-400">{appointments.filter(a => a.status === 'confirmed').length} RDV</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-secondary"></div>
-                <span className="text-sm text-gray-400">Terminé</span>
+              <div className="flex items-center gap-3 p-3 bg-secondary/10 rounded-xl border border-secondary/30">
+                <div className="w-3 h-3 rounded-full bg-secondary shadow-lg shadow-secondary/50"></div>
+                <div>
+                  <span className="text-sm font-semibold text-white">Terminé</span>
+                  <p className="text-xs text-gray-400">{appointments.filter(a => a.status === 'completed').length} RDV</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-red-500"></div>
-                <span className="text-sm text-gray-400">Annulé</span>
+              <div className="flex items-center gap-3 p-3 bg-red-500/10 rounded-xl border border-red-500/30">
+                <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50"></div>
+                <div>
+                  <span className="text-sm font-semibold text-white">Annulé</span>
+                  <p className="text-xs text-gray-400">{appointments.filter(a => a.status === 'cancelled').length} RDV</p>
+                </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* RDV sélectionnés pour une date */}
+        {/* Modal RDV du Jour - Design Amélioré */}
         {viewMode === 'calendar' && selectedDate && selectedAppointments.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass p-6 rounded-3xl mb-6"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="glass p-8 rounded-3xl mb-6 border border-primary/20 shadow-2xl relative overflow-hidden"
           >
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-primary" />
-              Rendez-vous du {moment(selectedDate).format('DD MMMM YYYY')}
-            </h3>
-            <div className="space-y-3">
-              {selectedAppointments.map((apt) => (
-                <div key={apt.id} className="bg-white/5 p-4 rounded-xl">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="text-white font-semibold">{apt.customer_name || apt.customer_phone}</p>
-                      <p className="text-sm text-gray-400">
-                        {apt.appointment_time} - {apt.service || 'RDV'}
-                      </p>
-                      {apt.customer_phone && (
-                        <p className="text-xs text-gray-500 mt-1">📞 {apt.customer_phone}</p>
-                      )}
+            {/* Fond décoratif */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-3xl -z-10"></div>
+
+            {/* En-tête amélioré */}
+            <div className="mb-6 pb-6 border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-white flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                      <CalendarIcon className="w-6 h-6 text-white" />
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs border ${getStatusColor(apt.status)}`}>
+                    {moment(selectedDate).format('DD MMMM YYYY')}
+                  </h3>
+                  <p className="text-gray-400 ml-15">
+                    {selectedAppointments.length} rendez-vous prévu{selectedAppointments.length > 1 ? 's' : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all hover:scale-110"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            {/* Liste des RDV avec design amélioré */}
+            <div className="space-y-4">
+              {selectedAppointments.map((apt, index) => (
+                <motion.div
+                  key={apt.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-gradient-to-br from-white/5 to-white/0 p-6 rounded-2xl border border-white/10 hover:border-primary/30 transition-all hover:scale-[1.02] group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start gap-4">
+                      {/* Avatar */}
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                        {(apt.customer_name || apt.customer_phone || 'C').charAt(0).toUpperCase()}
+                      </div>
+
+                      {/* Info client */}
+                      <div>
+                        <p className="text-white font-bold text-lg mb-1">
+                          {apt.customer_name || apt.customer_phone}
+                        </p>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 text-gray-300">
+                            <Clock className="w-4 h-4 text-primary" />
+                            <span className="font-semibold">{apt.appointment_time}</span>
+                            {apt.service && (
+                              <>
+                                <span className="text-gray-500">•</span>
+                                <span className="text-primary">{apt.service}</span>
+                              </>
+                            )}
+                          </div>
+                          {apt.customer_phone && (
+                            <div className="flex items-center gap-2 text-gray-400 text-sm">
+                              <Phone className="w-3.5 h-3.5" />
+                              {apt.customer_phone}
+                            </div>
+                          )}
+                          {apt.notes && (
+                            <p className="text-gray-400 text-sm mt-2 italic">
+                              💬 {apt.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Badge statut */}
+                    <span className={`px-4 py-2 rounded-xl text-xs font-bold border-2 ${getStatusColor(apt.status)} shadow-lg`}>
                       {getStatusLabel(apt.status)}
                     </span>
                   </div>
 
-                  {/* BOUTONS D'ACTION */}
-                  <div className="flex flex-wrap gap-2">
+                  {/* Boutons d'action redessinés */}
+                  <div className="flex flex-wrap gap-3 pt-4 border-t border-white/5">
                     {apt.status === 'pending' && !apt.archived && (
                       <>
                         <button
                           onClick={() => updateStatus(apt.id, 'confirmed')}
-                          className="px-3 py-1.5 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                          className="flex-1 min-w-[140px] px-4 py-3 bg-gradient-to-r from-accent/20 to-accent/10 hover:from-accent/30 hover:to-accent/20 text-accent rounded-xl text-sm font-semibold transition-all hover:scale-105 flex items-center justify-center gap-2 border border-accent/30"
                         >
-                          <Check className="w-3.5 h-3.5" />
+                          <Check className="w-4 h-4" />
                           Confirmer
                         </button>
                         <button
                           onClick={() => updateStatus(apt.id, 'cancelled')}
-                          className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                          className="flex-1 min-w-[140px] px-4 py-3 bg-gradient-to-r from-red-500/20 to-red-500/10 hover:from-red-500/30 hover:to-red-500/20 text-red-500 rounded-xl text-sm font-semibold transition-all hover:scale-105 flex items-center justify-center gap-2 border border-red-500/30"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <X className="w-4 h-4" />
                           Annuler
                         </button>
                       </>
@@ -539,22 +622,22 @@ export default function Appointments() {
                       <>
                         <button
                           onClick={() => updateStatus(apt.id, 'completed')}
-                          className="px-3 py-1.5 bg-secondary/20 hover:bg-secondary/30 text-secondary rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                          className="flex-1 min-w-[140px] px-4 py-3 bg-gradient-to-r from-secondary/20 to-secondary/10 hover:from-secondary/30 hover:to-secondary/20 text-secondary rounded-xl text-sm font-semibold transition-all hover:scale-105 flex items-center justify-center gap-2 border border-secondary/30"
                         >
-                          <Check className="w-3.5 h-3.5" />
+                          <Check className="w-4 h-4" />
                           Terminé
                         </button>
                         <button
                           onClick={() => handleDesistement(apt)}
-                          className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+                          className="flex-1 min-w-[140px] px-4 py-3 bg-gradient-to-r from-red-500/20 to-red-500/10 hover:from-red-500/30 hover:to-red-500/20 text-red-500 rounded-xl text-sm font-semibold transition-all hover:scale-105 flex items-center justify-center gap-2 border border-red-500/30"
                         >
-                          <AlertCircle className="w-3.5 h-3.5" />
+                          <AlertCircle className="w-4 h-4" />
                           Désistement
                         </button>
                       </>
                     )}
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </motion.div>
