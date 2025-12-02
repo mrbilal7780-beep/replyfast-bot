@@ -117,19 +117,26 @@ export default function AIAssistant() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
+      if (!session) {
+        throw new Error('Session expirée. Veuillez vous reconnecter.');
+      }
+
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           messages: [...messages, userMessage],
-          context: context
+          context: { ...context, companyEmail: session.user.email }
         })
       });
 
       const data = await response.json();
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Erreur lors de la communication avec l\'assistant');
       }
 
       const assistantMessage = { role: 'assistant', content: data.response };
@@ -155,10 +162,10 @@ export default function AIAssistant() {
 
       setTotalCost(totalCost + (data.cost || 0));
     } catch (error) {
-      console.error(error);
+      console.error('Erreur Assistant IA:', error);
       setMessages([...messages, userMessage, {
         role: 'assistant',
-        content: '❌ Désolé, une erreur est survenue. Vérifiez que votre clé OpenAI est configurée dans .env.local'
+        content: '❌ Désolé, je rencontre un problème technique. Veuillez réessayer dans quelques instants ou contacter le support si le problème persiste.'
       }]);
     }
 
