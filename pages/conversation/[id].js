@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Send, User, Bot, X } from 'lucide-react';
+import { ArrowLeft, Send, User, Bot, X, ArrowDown } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -15,17 +15,44 @@ export default function ConversationDetail() {
   const [messages, setMessages] = useState([]);
   const [conversation, setConversation] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => {
     if (id) {
       loadConversation();
       loadMessages();
-      
+
       // Auto-refresh toutes les 3 secondes
       const interval = setInterval(loadMessages, 3000);
       return () => clearInterval(interval);
     }
   }, [id]);
+
+  // Auto-scroll vers le bas quand nouveaux messages
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Détecter si l'utilisateur a scrollé vers le haut
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollButton(!isNearBottom);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const loadConversation = async () => {
     const { data } = await supabase
@@ -72,8 +99,12 @@ export default function ConversationDetail() {
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="max-w-4xl mx-auto p-6">
+      {/* Messages - Avec scroll */}
+      <div
+        ref={messagesContainerRef}
+        className="max-w-4xl mx-auto p-6 overflow-y-auto"
+        style={{ maxHeight: 'calc(100vh - 120px)' }}
+      >
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-12">
@@ -99,7 +130,7 @@ export default function ConversationDetail() {
                     <Bot className="w-5 h-5 text-primary" />
                   </div>
                 )}
-                
+
                 <div
                   className={`max-w-md p-4 rounded-2xl ${
                     msg.sender === 'bot'
@@ -124,8 +155,25 @@ export default function ConversationDetail() {
               </motion.div>
             ))
           )}
+          <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* Bouton "Aller en bas" FLOTTANT - Visible quand scrollé vers le haut */}
+      {showScrollButton && (
+        <motion.button
+          onClick={scrollToBottom}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-primary/80 backdrop-blur-md border border-primary/50 flex items-center justify-center hover:bg-primary transition-all shadow-lg group"
+          title="Aller en bas"
+        >
+          <ArrowDown className="w-6 h-6 text-white group-hover:animate-bounce" />
+        </motion.button>
+      )}
 
       {/* Bouton fermeture FLOTTANT - toujours visible */}
       <motion.button

@@ -64,6 +64,9 @@ export default function SettingsPage() {
     langue: 'fr'
   });
 
+  // Autosave timer
+  const [autosaveTimer, setAutosaveTimer] = useState(null);
+
   // Sécurité
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -117,13 +120,18 @@ export default function SettingsPage() {
     loadAllData();
     loadPaymentHistory();
 
-    // Charger et appliquer le thème depuis localStorage
-    const savedTheme = localStorage.getItem('replyfast_theme');
-    if (savedTheme) {
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      document.documentElement.classList.remove('dark', 'light');
-      document.documentElement.classList.add(savedTheme);
-      setPreferences(prev => ({ ...prev, theme: savedTheme }));
+    // Charger et appliquer le thème depuis localStorage (défaut: dark)
+    const savedTheme = localStorage.getItem('replyfast_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.documentElement.classList.remove('dark', 'light');
+    document.documentElement.classList.add(savedTheme);
+    document.body.classList.remove('dark', 'light');
+    document.body.classList.add(savedTheme);
+    setPreferences(prev => ({ ...prev, theme: savedTheme }));
+
+    // Sauvegarder si c'était la première fois (pour persistance)
+    if (!localStorage.getItem('replyfast_theme')) {
+      localStorage.setItem('replyfast_theme', 'dark');
     }
 
     // Détecter mobile
