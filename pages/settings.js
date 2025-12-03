@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Save, Check, CheckCircle, MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, User, Building, Palette, Mail, Phone, MapPin, Globe, Camera, Lock, CreditCard, FileText, Shield, ExternalLink, Bot, Volume2, VolumeX, Mic, MicOff, Eye, Type } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
+import QRCode from 'qrcode';
 import { getSectorsList } from '../lib/sectors';
 import MobileMenu from '../components/MobileMenu';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -674,15 +675,38 @@ export default function SettingsPage() {
     setLoading(false);
   };
 
+  // Générer secret base32 aléatoire
+  const generateBase32Secret = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let secret = '';
+    for (let i = 0; i < 32; i++) {
+      secret += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return secret;
+  };
+
   const handleEnable2FA = async () => {
     setLoading(true);
     try {
-      // Générer un secret 2FA (simulé - dans la vraie vie, utiliser un vrai générateur TOTP)
-      const secret = 'JBSWY3DPEHPK3PXP'; // Exemple de secret base32
-      const qrUrl = `https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl=otpauth://totp/ReplyFastAI:${user.email}?secret=${secret}&issuer=ReplyFastAI`;
+      // Générer un vrai secret 2FA aléatoire
+      const secret = generateBase32Secret();
+      const otpauthUrl = `otpauth://totp/ReplyFastAI:${user.email}?secret=${secret}&issuer=ReplyFastAI`;
 
-      setQrCodeUrl(qrUrl);
+      // Générer QR code avec la librairie qrcode
+      const qrDataUrl = await QRCode.toDataURL(otpauthUrl, {
+        width: 250,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+
+      setQrCodeUrl(qrDataUrl);
       setShowQRCode(true);
+
+      // Sauvegarder le secret temporairement pour la vérification
+      window.temp2FASecret = secret;
 
       // Générer des backup codes
       const codes = Array.from({ length: 10 }, () =>
@@ -690,7 +714,8 @@ export default function SettingsPage() {
       );
       setBackupCodes(codes);
     } catch (error) {
-      alert('❌ Erreur lors de l\'activation de la 2FA');
+      console.error('Erreur 2FA:', error);
+      alert('❌ Erreur lors de l\'activation de la 2FA: ' + error.message);
     }
     setLoading(false);
   };
@@ -707,15 +732,24 @@ export default function SettingsPage() {
       // Pour la démo, accepter n'importe quel code de 6 chiffres
 
       // Sauvegarder le statut 2FA avec upsert (évite les duplicates)
+      // Récupérer le secret généré
+      const secret = window.temp2FASecret;
+      if (!secret) {
+        throw new Error('Secret 2FA manquant');
+      }
+
       const { error } = await supabase
         .from('user_preferences')
         .upsert({
           user_email: user.email,
           two_factor_enabled: true,
-          two_factor_secret: 'JBSWY3DPEHPK3PXP' // Dans la vraie vie, chiffrer ce secret
+          two_factor_secret: secret // Secret aléatoire généré
         }, {
-          onConflict: 'user_email'  // 🔧 FIX: Utiliser upsert au lieu de update+insert
+          onConflict: 'user_email'
         });
+
+      // Nettoyer le secret temporaire
+      delete window.temp2FASecret;
 
       if (error) throw error;
 
