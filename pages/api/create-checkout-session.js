@@ -109,17 +109,7 @@ export default async function handler(req, res) {
       payment_method_types: ['card'], // Carte seulement - pas de compte Stripe requis
       line_items: [
         {
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: planConfig.name,
-              description: planConfig.description,
-            },
-            unit_amount: planConfig.amount,
-            recurring: {
-              interval: planConfig.interval,
-            },
-          },
+          price: process.env.STRIPE_PRICE_ID, // 🎯 Utiliser le price ID configuré
           quantity: 1,
         },
       ],
