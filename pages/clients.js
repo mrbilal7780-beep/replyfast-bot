@@ -191,6 +191,13 @@ export default function Clients() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      // 🎯 Mettre à jour customer_name_override dans conversations (prioritaire)
+      await supabase
+        .from('conversations')
+        .update({ customer_name_override: newName })
+        .eq('customer_phone', renamingClient.phone)
+        .eq('client_email', session.user.email);
+
       // Mettre à jour le nom dans tous les RDV
       await supabase
         .from('appointments')
@@ -210,10 +217,10 @@ export default function Clients() {
       setShowRenameModal(false);
       setRenamingClient(null);
       setNewName('');
-      alert('✅ Client renommé avec succès !');
+      alert('✅ Client renommé avec succès dans toutes les tables !');
     } catch (error) {
       console.error('Erreur renommage:', error);
-      alert('❌ Erreur lors du renommage');
+      alert('❌ Erreur lors du renommage: ' + error.message);
     }
   };
 
