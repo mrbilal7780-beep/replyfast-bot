@@ -117,34 +117,32 @@ export default function ConversationDetail() {
         return;
       }
 
-      // 3. Envoyer via WhatsApp (API Meta)
+      // 3. Envoyer via WhatsApp via notre API route (sécurisée)
       try {
-        const whatsappResponse = await fetch(
-          `https://graph.facebook.com/v21.0/${client.whatsapp_phone_number_id}/messages`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_META_ACCESS_TOKEN}`
-            },
-            body: JSON.stringify({
-              messaging_product: 'whatsapp',
-              to: conversation.customer_phone,
-              text: { body: manualMessage }
-            })
-          }
-        );
+        const whatsappResponse = await fetch('/api/send-whatsapp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            phone_number_id: client.whatsapp_phone_number_id,
+            to: conversation.customer_phone,
+            message: manualMessage
+          })
+        });
 
-        if (!whatsappResponse.ok) {
-          const errorData = await whatsappResponse.json();
-          console.error('Erreur envoi WhatsApp:', errorData);
-          alert('⚠️ Message sauvegardé mais l\'envoi WhatsApp a échoué. Vérifiez votre configuration.');
-        } else {
-          console.log('✅ Message envoyé via WhatsApp');
+        const result = await whatsappResponse.json();
+
+        if (!whatsappResponse.ok || result.error) {
+          console.error('Erreur envoi WhatsApp:', result);
+          throw new Error(result.error || 'Erreur WhatsApp');
         }
+
+        console.log('✅ Message envoyé via WhatsApp');
       } catch (whatsappError) {
-        console.error('Erreur réseau WhatsApp:', whatsappError);
-        alert('⚠️ Message sauvegardé mais l\'envoi WhatsApp a échoué (erreur réseau).');
+        console.error('Erreur envoi WhatsApp:', whatsappError);
+        alert(`⚠️ Message sauvegardé en base mais l'envoi WhatsApp a échoué:\n${whatsappError.message}\n\nVérifiez votre configuration WhatsApp Business.`);
       }
 
       setManualMessage('');
