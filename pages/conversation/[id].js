@@ -18,6 +18,7 @@ export default function ConversationDetail() {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [manualMessage, setManualMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
@@ -25,12 +26,32 @@ export default function ConversationDetail() {
     if (id) {
       loadConversation();
       loadMessages();
+      loadProfilePhoto();
 
       // Auto-refresh toutes les 3 secondes
       const interval = setInterval(loadMessages, 3000);
       return () => clearInterval(interval);
     }
   }, [id]);
+
+  const loadProfilePhoto = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: client } = await supabase
+        .from('clients')
+        .select('profile_photo_url')
+        .eq('email', session.user.email)
+        .maybeSingle();
+
+      if (client?.profile_photo_url) {
+        setProfilePhoto(client.profile_photo_url);
+      }
+    } catch (error) {
+      console.error('Erreur chargement photo:', error);
+    }
+  };
 
   // Auto-scroll vers le bas quand nouveaux messages
   useEffect(() => {
@@ -84,72 +105,76 @@ export default function ConversationDetail() {
     if (!manualMessage.trim() || !conversation || sending) return;
 
     setSending(true);
+    const messageToSend = manualMessage;
+
     try {
-      // 1. Sauvegarder le message dans la DB
-      const { error: dbError } = await supabase
-        .from('messages')
-        .insert([{
-          conversation_id: id,
-          sender: 'bot',
-          message: manualMessage,
-          message_type: 'text'
-        }]);
-
-      if (dbError) throw dbError;
-
-      // 2. Récupérer les infos client pour envoyer via WhatsApp
+      // 1. Récupérer les infos client pour envoyer via WhatsApp D'ABORD
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('❌ Session expirée, veuillez vous reconnecter');
+        setSending(false);
         return;
       }
 
       const { data: client } = await supabase
         .from('clients')
-        .select('whatsapp_phone_number_id')
+        .select('whatsapp_phone_number_id, whatsapp_token')
         .eq('email', conversation.client_email)
         .single();
 
       if (!client?.whatsapp_phone_number_id) {
-        alert('⚠️ Message sauvegardé mais envoi WhatsApp impossible (Phone Number ID manquant)');
-        setManualMessage('');
-        loadMessages();
+        alert('⚠️ Envoi impossible : Phone Number ID WhatsApp manquant dans vos paramètres');
+        setSending(false);
         return;
       }
 
-      // 3. Envoyer via WhatsApp via notre API route (sécurisée)
-      try {
-        const whatsappResponse = await fetch('/api/send-whatsapp', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: JSON.stringify({
-            phone_number_id: client.whatsapp_phone_number_id,
-            to: conversation.customer_phone,
-            message: manualMessage
-          })
-        });
+      // 2. ENVOYER D'ABORD via WhatsApp (priorité)
+      const whatsappResponse = await fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          phone_number_id: client.whatsapp_phone_number_id,
+          to: conversation.customer_phone,
+          message: messageToSend
+        })
+      });
 
-        const result = await whatsappResponse.json();
+      const result = await whatsappResponse.json();
 
-        if (!whatsappResponse.ok || result.error) {
-          console.error('Erreur envoi WhatsApp:', result);
-          throw new Error(result.error || 'Erreur WhatsApp');
-        }
+      if (!whatsappResponse.ok || result.error) {
+        console.error('❌ Erreur envoi WhatsApp:', result);
+        throw new Error(result.details || result.error || 'Erreur WhatsApp');
+      }
 
-        console.log('✅ Message envoyé via WhatsApp');
-      } catch (whatsappError) {
-        console.error('Erreur envoi WhatsApp:', whatsappError);
-        alert(`⚠️ Message sauvegardé en base mais l'envoi WhatsApp a échoué:\n${whatsappError.message}\n\nVérifiez votre configuration WhatsApp Business.`);
+      console.log('✅ Message envoyé via WhatsApp:', result);
+
+      // 3. SEULEMENT si WhatsApp OK, sauvegarder en DB
+      const { error: dbError } = await supabase
+        .from('messages')
+        .insert([{
+          conversation_id: id,
+          client_email: conversation.client_email,
+          customer_phone: conversation.customer_phone,
+          sender: 'bot',
+          direction: 'sent',
+          message: messageToSend,
+          message_type: 'text',
+          created_at: new Date().toISOString()
+        }]);
+
+      if (dbError) {
+        console.error('⚠️ Message envoyé mais erreur DB:', dbError);
       }
 
       setManualMessage('');
-      loadMessages(); // Recharger pour afficher le nouveau message
+      await loadMessages(); // Recharger pour afficher
+
     } catch (error) {
-      console.error('Erreur envoi message:', error);
-      alert('❌ Erreur lors de l\'envoi : ' + error.message);
+      console.error('❌ Erreur complète:', error);
+      alert(`❌ Échec envoi WhatsApp:\n\n${error.message}\n\nVérifiez:\n• Phone Number ID configuré\n• Token WhatsApp valide\n• Numéro destinataire correct`);
     } finally {
       setSending(false);
     }
@@ -168,12 +193,24 @@ export default function ConversationDetail() {
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-bold text-white">
-              {conversation?.customer_phone || 'Chargement...'}
+              {conversation?.customer_name_override || conversation?.customer_name || conversation?.customer_phone || 'Chargement...'}
             </h1>
             <p className="text-sm text-gray-400">
               {messages.length} message(s)
             </p>
           </div>
+          {/* Photo de profil du business */}
+          {profilePhoto ? (
+            <img
+              src={profilePhoto}
+              alt="Profil"
+              className="w-12 h-12 rounded-full object-cover border-2 border-primary/50 shadow-lg"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <User className="w-6 h-6 text-white" />
+            </div>
+          )}
         </div>
       </div>
 

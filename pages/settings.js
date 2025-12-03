@@ -313,13 +313,13 @@ export default function SettingsPage() {
       setProfileData(prev => ({
         ...prev,
         nom_complet: fullName || '',
-        telephone: client.phone || ''
+        telephone: client.telephone || ''
       }));
 
       // Sauvegarder dans localStorage pour la prochaine fois
       localStorage.setItem('replyfast_profile', JSON.stringify({
         nom_complet: fullName,
-        telephone: client.phone || '',
+        telephone: client.telephone || '',
         email: session.user.email
       }));
 
@@ -518,7 +518,7 @@ export default function SettingsPage() {
         .update({
           first_name: profileData.nom_complet.split(' ')[0],
           last_name: profileData.nom_complet.split(' ').slice(1).join(' '),
-          phone: profileData.telephone
+          telephone: profileData.telephone
         })
         .eq('email', user.email);
 
@@ -571,6 +571,8 @@ export default function SettingsPage() {
           whatsapp_connected: true,
           company_name: businessData.nom_entreprise,
           profile_completed: true
+        }, {
+          onConflict: 'email'
         });
 
       if (clientError) throw clientError;

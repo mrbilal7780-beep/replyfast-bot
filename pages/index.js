@@ -63,48 +63,54 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden" style={{ backgroundColor: '#0a1628' }}>
-      {/* Fond adaptatif : Gradient simple sur mobile, Particules sur desktop */}
-      {!isMobile && <ParticlesBackground />}
-      {isMobile && (
-        <div className="fixed inset-0 pointer-events-none">
-          {/* Gradient de fond */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-secondary/10 to-accent/20"></div>
-          {/* Points animés subtils */}
-          <div className="absolute inset-0">
-            {[...Array(12)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-1 h-1 bg-white/30 rounded-full"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                }}
-                animate={{
-                  opacity: [0.2, 0.5, 0.2],
-                  scale: [1, 1.3, 1],
-                }}
-                transition={{
-                  duration: 3 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: Math.random() * 2,
-                }}
-              />
-            ))}
-          </div>
+    <div className="min-h-screen overflow-hidden" style={{ backgroundColor: '#000000' }}>
+      {/* Fond futuriste sombre */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
+        {/* Grille subtile futuriste */}
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px)',
+          backgroundSize: '50px 50px'
+        }}></div>
+        {/* Points lumineux subtils */}
+        <div className="absolute inset-0">
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                backgroundColor: 'rgba(99, 102, 241, 0.3)'
+              }}
+              animate={{
+                opacity: [0.1, 0.4, 0.1],
+                scale: [0.8, 1.2, 0.8],
+              }}
+              transition={{
+                duration: 4 + Math.random() * 3,
+                repeat: Infinity,
+                delay: Math.random() * 2,
+              }}
+            />
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Navbar - Responsive */}
-      <nav className="relative z-10 flex justify-between items-center p-4 md:p-6 max-w-7xl mx-auto">
+      <nav className="relative z-10 flex justify-between items-center p-6 md:p-8 max-w-7xl mx-auto">
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -40 }}
           animate={{ opacity: 1, x: 0 }}
-          className="text-xl md:text-2xl font-bold"
+          whileHover={{ scale: 1.05 }}
+          transition={{ type: "spring", stiffness: 300 }}
+          className="text-3xl md:text-5xl font-black tracking-tight"
+          style={{ fontFamily: "'Orbitron', 'Rajdhani', sans-serif" }}
         >
-          <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-            ReplyFast AI
+          <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent drop-shadow-2xl">
+            REPLYFAST
           </span>
+          <span className="text-white ml-2">AI</span>
         </motion.div>
 
         <div className="flex items-center gap-2 md:gap-4">
@@ -136,96 +142,25 @@ export default function Home() {
           animate={{ opacity: 1 }}
           className="text-center"
         >
-          {/* Badge OFFRE SPÉCIALE */}
-          {/* Offre 1 MOIS GRATUIT - Visibilité maximale */}
+          {/* Badge essai gratuit - Design sobre et pro */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{
-              delay: 0.2,
-              type: "spring",
-              stiffness: 200,
-              damping: 15
-            }}
-            className="inline-flex flex-col gap-4 items-center mb-10 relative"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="inline-flex flex-col gap-3 items-center mb-8"
           >
-            {/* Badge flottant "OFFRE LIMITÉE" */}
-            <motion.div
-              animate={{
-                y: [0, -10, 0],
-                rotate: [0, 5, 0, -5, 0]
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                repeatType: "loop"
-              }}
-              className="absolute -top-8 -right-12 bg-red-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg z-10"
-            >
-              🔥 OFFRE LIMITÉE
-            </motion.div>
+            <div className="glass px-8 py-3 rounded-2xl border border-primary/30 backdrop-blur-xl">
+              <p className="text-xl md:text-2xl font-bold text-white text-center tracking-wide">
+                1 MOIS D'ESSAI GRATUIT
+              </p>
+              <p className="text-center text-gray-400 text-sm mt-1">
+                Carte bancaire requise • Annulation en un clic
+              </p>
+            </div>
 
-            {/* Box principale 1 MOIS GRATUIT */}
-            <motion.div
-              animate={{
-                scale: [1, 1.05, 1],
-                boxShadow: [
-                  "0 20px 60px rgba(16, 185, 129, 0.4)",
-                  "0 25px 80px rgba(16, 185, 129, 0.6)",
-                  "0 20px 60px rgba(16, 185, 129, 0.4)"
-                ]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                repeatType: "reverse"
-              }}
-              className="relative px-10 py-6 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 rounded-3xl shadow-2xl border-4 border-white/30 overflow-hidden"
-            >
-              {/* Effet brillance animé */}
-              <motion.div
-                animate={{
-                  x: [-200, 400],
-                  opacity: [0, 1, 0]
-                }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  repeatDelay: 1
-                }}
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
-                style={{ transform: "skewX(-20deg)" }}
-              />
-
-              <div className="relative z-10">
-                <p className="text-4xl md:text-5xl font-black text-white text-center tracking-tight drop-shadow-lg">
-                  🎁 1 MOIS GRATUIT 🎁
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-center justify-center mt-3">
-                  <p className="text-base md:text-lg text-white font-bold drop-shadow">
-                    ✅ 30 jours d'essai complet
-                  </p>
-                  <span className="hidden sm:inline text-white/60">•</span>
-                  <p className="text-base md:text-lg text-white font-bold drop-shadow">
-                    🚫 Sans carte bancaire
-                  </p>
-                </div>
-                <p className="text-center text-white/90 text-sm mt-2 font-semibold">
-                  Testez toutes les fonctionnalités sans aucun engagement
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Badge IA */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="glass px-5 py-2.5 rounded-full border border-white/20"
-            >
-              <Sparkles className="w-4 h-4 text-accent inline mr-2" />
-              <span className="text-sm font-semibold text-white">Intelligence artificielle de nouvelle génération</span>
-            </motion.div>
+            <div className="glass px-6 py-2 rounded-full border border-white/10">
+              <span className="text-sm font-medium text-gray-300">Intelligence Artificielle Avancée</span>
+            </div>
           </motion.div>
 
           {/* Title */}
@@ -282,21 +217,20 @@ export default function Home() {
           >
             <motion.button
               onClick={() => router.push('/signup')}
-              whileHover={{ scale: 1.08 }}
+              whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
-              className="group relative px-10 py-5 bg-gradient-to-r from-green-500 via-emerald-600 to-teal-600 rounded-full text-white font-bold text-xl shadow-2xl shadow-green-500/50 border-2 border-white/30 overflow-hidden"
+              className="group relative px-12 py-5 bg-gradient-to-r from-primary via-secondary to-accent rounded-2xl text-white font-bold text-xl shadow-2xl border border-white/20 overflow-hidden"
             >
               {/* Animation brillance au hover */}
               <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                 style={{ transform: "skewX(-20deg)" }}
                 initial={{ x: "-200%" }}
                 whileHover={{ x: "200%" }}
                 transition={{ duration: 0.6 }}
               />
               <span className="relative flex items-center gap-3">
-                <span className="text-yellow-300 text-2xl">🎁</span>
-                <span>Commencer - 1 MOIS GRATUIT</span>
+                <span>Commencer l'essai gratuit</span>
                 <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
               </span>
             </motion.button>
@@ -315,7 +249,7 @@ export default function Home() {
             transition={{ delay: 0.7 }}
             className="text-gray-500 mt-4 text-sm"
           >
-            Sans carte bancaire • Annulez quand vous voulez
+            Carte bancaire requise • Annulation en un clic
           </motion.p>
         </motion.div>
 
@@ -428,7 +362,7 @@ export default function Home() {
           </button>
 
           <p className="text-center text-gray-500 text-sm mt-6">
-            14 jours d'essai gratuit • Sans engagement • Annulation en un clic
+            1 mois d'essai gratuit • Carte bancaire requise • Annulation en un clic
           </p>
         </motion.div>
 
