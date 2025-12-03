@@ -63,55 +63,86 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden" style={{ backgroundColor: '#000000' }}>
-      {/* Fond futuriste sombre */}
-      <div className="fixed inset-0 pointer-events-none">
+    <div className="min-h-screen overflow-hidden relative" style={{ backgroundColor: '#000000' }}>
+      {/* Fond avec vagues animées futuristes */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
-        {/* Grille subtile futuriste */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px)',
-          backgroundSize: '50px 50px'
+
+        {/* Vagues animées */}
+        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="wave-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="rgba(99, 102, 241, 0.1)" />
+              <stop offset="50%" stopColor="rgba(139, 92, 246, 0.15)" />
+              <stop offset="100%" stopColor="rgba(99, 102, 241, 0.1)" />
+            </linearGradient>
+          </defs>
+
+          <motion.path
+            d="M0,100 Q250,50 500,100 T1000,100 T1500,100 T2000,100 V400 H0 Z"
+            fill="url(#wave-gradient)"
+            animate={{
+              d: [
+                "M0,100 Q250,50 500,100 T1000,100 T1500,100 T2000,100 V400 H0 Z",
+                "M0,120 Q250,70 500,120 T1000,120 T1500,120 T2000,120 V400 H0 Z",
+                "M0,100 Q250,50 500,100 T1000,100 T1500,100 T2000,100 V400 H0 Z"
+              ]
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+
+          <motion.path
+            d="M0,200 Q300,150 600,200 T1200,200 T1800,200 T2400,200 V600 H0 Z"
+            fill="rgba(139, 92, 246, 0.05)"
+            animate={{
+              d: [
+                "M0,200 Q300,150 600,200 T1200,200 T1800,200 T2400,200 V600 H0 Z",
+                "M0,180 Q300,130 600,180 T1200,180 T1800,180 T2400,180 V600 H0 Z",
+                "M0,200 Q300,150 600,200 T1200,200 T1800,200 T2400,200 V600 H0 Z"
+              ]
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1
+            }}
+          />
+        </svg>
+
+        {/* Grille subtile */}
+        <div className="absolute inset-0 opacity-30" style={{
+          backgroundImage: 'linear-gradient(rgba(99, 102, 241, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.02) 1px, transparent 1px)',
+          backgroundSize: '60px 60px'
         }}></div>
-        {/* Points lumineux subtils */}
-        <div className="absolute inset-0">
-          {[...Array(20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 rounded-full"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                backgroundColor: 'rgba(99, 102, 241, 0.3)'
-              }}
-              animate={{
-                opacity: [0.1, 0.4, 0.1],
-                scale: [0.8, 1.2, 0.8],
-              }}
-              transition={{
-                duration: 4 + Math.random() * 3,
-                repeat: Infinity,
-                delay: Math.random() * 2,
-              }}
-            />
-          ))}
-        </div>
       </div>
 
-      {/* Navbar - Responsive */}
-      <nav className="relative z-10 flex justify-between items-center p-6 md:p-8 max-w-7xl mx-auto">
+      {/* Logo fixe en haut à gauche */}
+      <motion.div
+        initial={{ opacity: 0, x: -40 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="fixed top-6 left-6 z-50"
+      >
         <motion.div
-          initial={{ opacity: 0, x: -40 }}
-          animate={{ opacity: 1, x: 0 }}
-          whileHover={{ scale: 1.05 }}
-          transition={{ type: "spring", stiffness: 300 }}
-          className="text-3xl md:text-5xl font-black tracking-tight"
+          whileHover={{ scale: 1.08 }}
+          transition={{ type: "spring", stiffness: 400 }}
+          className="text-3xl md:text-4xl font-black tracking-tight cursor-pointer"
           style={{ fontFamily: "'Orbitron', 'Rajdhani', sans-serif" }}
+          onClick={() => router.push('/')}
         >
           <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent drop-shadow-2xl">
             REPLYFAST
           </span>
           <span className="text-white ml-2">AI</span>
         </motion.div>
+      </motion.div>
+
+      {/* Navbar - Juste les boutons à droite */}
+      <nav className="relative z-10 flex justify-end items-center p-6 md:p-8 max-w-7xl mx-auto">
 
         <div className="flex items-center gap-2 md:gap-4">
           <motion.button
@@ -142,24 +173,17 @@ export default function Home() {
           animate={{ opacity: 1 }}
           className="text-center"
         >
-          {/* Badge essai gratuit - Design sobre et pro */}
+          {/* Badge IA seul */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="inline-flex flex-col gap-3 items-center mb-8"
+            className="inline-flex items-center mb-8"
           >
-            <div className="glass px-8 py-3 rounded-2xl border border-primary/30 backdrop-blur-xl">
-              <p className="text-xl md:text-2xl font-bold text-white text-center tracking-wide">
-                1 MOIS D'ESSAI GRATUIT
-              </p>
-              <p className="text-center text-gray-400 text-sm mt-1">
-                Carte bancaire requise • Annulation en un clic
-              </p>
-            </div>
-
-            <div className="glass px-6 py-2 rounded-full border border-white/10">
-              <span className="text-sm font-medium text-gray-300">Intelligence Artificielle Avancée</span>
+            <div className="glass px-8 py-3 rounded-full border border-primary/20 backdrop-blur-xl">
+              <span className="text-base font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Intelligence Artificielle Avancée
+              </span>
             </div>
           </motion.div>
 
@@ -249,7 +273,7 @@ export default function Home() {
             transition={{ delay: 0.7 }}
             className="text-gray-500 mt-4 text-sm"
           >
-            Carte bancaire requise • Annulation en un clic
+            1 mois d'essai gratuit • Annulation en un clic
           </motion.p>
         </motion.div>
 
