@@ -137,24 +137,95 @@ export default function Home() {
           className="text-center"
         >
           {/* Badge OFFRE SPÉCIALE */}
+          {/* Offre 1 MOIS GRATUIT - Visibilité maximale */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex flex-col gap-3 items-center mb-8"
+            initial={{ opacity: 0, scale: 0.8, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{
+              delay: 0.2,
+              type: "spring",
+              stiffness: 200,
+              damping: 15
+            }}
+            className="inline-flex flex-col gap-4 items-center mb-10 relative"
           >
-            <div className="px-8 py-4 bg-gradient-to-r from-accent via-secondary to-primary rounded-2xl shadow-2xl shadow-accent/50 animate-pulse">
-              <p className="text-3xl md:text-4xl font-black text-white text-center">
-                🎁 1 MOIS GRATUIT 🎁
-              </p>
-              <p className="text-sm text-white/80 text-center mt-1">
-                30 jours d'essai complet • Sans carte bancaire
-              </p>
-            </div>
-            <div className="glass px-4 py-2 rounded-full">
+            {/* Badge flottant "OFFRE LIMITÉE" */}
+            <motion.div
+              animate={{
+                y: [0, -10, 0],
+                rotate: [0, 5, 0, -5, 0]
+              }}
+              transition={{
+                duration: 3,
+                repeat: Infinity,
+                repeatType: "loop"
+              }}
+              className="absolute -top-8 -right-12 bg-red-500 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg z-10"
+            >
+              🔥 OFFRE LIMITÉE
+            </motion.div>
+
+            {/* Box principale 1 MOIS GRATUIT */}
+            <motion.div
+              animate={{
+                scale: [1, 1.05, 1],
+                boxShadow: [
+                  "0 20px 60px rgba(16, 185, 129, 0.4)",
+                  "0 25px 80px rgba(16, 185, 129, 0.6)",
+                  "0 20px 60px rgba(16, 185, 129, 0.4)"
+                ]
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                repeatType: "reverse"
+              }}
+              className="relative px-10 py-6 bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 rounded-3xl shadow-2xl border-4 border-white/30 overflow-hidden"
+            >
+              {/* Effet brillance animé */}
+              <motion.div
+                animate={{
+                  x: [-200, 400],
+                  opacity: [0, 1, 0]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  repeatDelay: 1
+                }}
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                style={{ transform: "skewX(-20deg)" }}
+              />
+
+              <div className="relative z-10">
+                <p className="text-4xl md:text-5xl font-black text-white text-center tracking-tight drop-shadow-lg">
+                  🎁 1 MOIS GRATUIT 🎁
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 items-center justify-center mt-3">
+                  <p className="text-base md:text-lg text-white font-bold drop-shadow">
+                    ✅ 30 jours d'essai complet
+                  </p>
+                  <span className="hidden sm:inline text-white/60">•</span>
+                  <p className="text-base md:text-lg text-white font-bold drop-shadow">
+                    🚫 Sans carte bancaire
+                  </p>
+                </div>
+                <p className="text-center text-white/90 text-sm mt-2 font-semibold">
+                  Testez toutes les fonctionnalités sans aucun engagement
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Badge IA */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="glass px-5 py-2.5 rounded-full border border-white/20"
+            >
               <Sparkles className="w-4 h-4 text-accent inline mr-2" />
-              <span className="text-sm">Intelligence artificielle de nouvelle génération</span>
-            </div>
+              <span className="text-sm font-semibold text-white">Intelligence artificielle de nouvelle génération</span>
+            </motion.div>
           </motion.div>
 
           {/* Title */}
@@ -209,15 +280,26 @@ export default function Home() {
             transition={{ delay: 0.6 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
-            <button
+            <motion.button
               onClick={() => router.push('/signup')}
-              className="group relative px-8 py-4 bg-gradient-to-r from-primary to-secondary rounded-full text-white font-semibold text-lg hover:scale-105 transition-transform shadow-lg shadow-primary/50"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.98 }}
+              className="group relative px-10 py-5 bg-gradient-to-r from-green-500 via-emerald-600 to-teal-600 rounded-full text-white font-bold text-xl shadow-2xl shadow-green-500/50 border-2 border-white/30 overflow-hidden"
             >
-              <span className="flex items-center gap-2">
-                Commencer - 1 MOIS GRATUIT
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              {/* Animation brillance au hover */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                style={{ transform: "skewX(-20deg)" }}
+                initial={{ x: "-200%" }}
+                whileHover={{ x: "200%" }}
+                transition={{ duration: 0.6 }}
+              />
+              <span className="relative flex items-center gap-3">
+                <span className="text-yellow-300 text-2xl">🎁</span>
+                <span>Commencer - 1 MOIS GRATUIT</span>
+                <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
               </span>
-            </button>
+            </motion.button>
 
             <button
               onClick={() => scrollToSection('details')}
