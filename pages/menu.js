@@ -748,26 +748,26 @@ export default function MenuManager() {
                   </div>
                 </label>
 
-                {/* Prévisualisation du fichier uploadé */}
+                {/* Prévisualisation du fichier uploadé - Améliorée */}
                 {uploadedFileUrl && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mt-6 p-4 bg-white/5 border border-accent/30 rounded-xl"
+                    className="mt-6 glass p-6 rounded-3xl border border-accent/30"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center">
+                        <div className="w-14 h-14 bg-gradient-to-br from-accent/30 to-primary/30 rounded-xl flex items-center justify-center">
                           {uploadedFileUrl.includes('.pdf') ? (
-                            <span className="text-2xl">📄</span>
+                            <span className="text-3xl">📄</span>
                           ) : (
-                            <span className="text-2xl">🖼️</span>
+                            <span className="text-3xl">🖼️</span>
                           )}
                         </div>
                         <div>
-                          <p className="text-white font-semibold">Fichier uploadé</p>
+                          <p className="text-white font-bold text-lg">Fichier uploadé</p>
                           <p className="text-gray-400 text-sm">
-                            {uploadedFileUrl.includes('.pdf') ? 'Document PDF' : 'Image'}
+                            {uploadedFileUrl.includes('.pdf') ? '📄 Document PDF' : '🖼️ Image du menu'}
                           </p>
                         </div>
                       </div>
@@ -776,25 +776,52 @@ export default function MenuManager() {
                           href={uploadedFileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors text-sm"
+                          className="px-4 py-2 bg-gradient-to-r from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30 text-primary rounded-xl transition-all text-sm font-semibold border border-primary/30 hover:scale-105"
                         >
-                          Voir
+                          📤 Ouvrir
                         </a>
                         <button
                           onClick={async () => {
-                            if (confirm('Supprimer le fichier uploadé?')) {
+                            if (confirm('❌ Supprimer définitivement ce fichier?')) {
                               await supabase
                                 .from('menus')
                                 .update({ file_url: null, file_type: null })
                                 .eq('client_email', user.email);
                               setUploadedFileUrl(null);
+                              alert('✅ Fichier supprimé!');
                             }
                           }}
-                          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg transition-colors text-sm"
+                          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-xl transition-all text-sm hover:scale-105"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                    </div>
+
+                    {/* Prévisualisation intégrée */}
+                    <div className="mt-4 border border-white/10 rounded-2xl overflow-hidden bg-white/5">
+                      {uploadedFileUrl.includes('.pdf') ? (
+                        <div className="relative w-full" style={{ minHeight: '600px' }}>
+                          <iframe
+                            src={`${uploadedFileUrl}#toolbar=0&navpanes=0`}
+                            className="w-full h-full rounded-2xl"
+                            style={{ minHeight: '600px' }}
+                            title="Prévisualisation PDF"
+                          />
+                          <p className="text-center text-gray-400 text-sm p-4 bg-white/5">
+                            💡 <span className="text-white font-semibold">Astuce:</span> Cliquez sur "Ouvrir" pour voir le PDF en plein écran
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-4">
+                          <img
+                            src={uploadedFileUrl}
+                            alt="Menu"
+                            className="w-full h-auto rounded-xl shadow-2xl"
+                            style={{ maxHeight: '600px', objectFit: 'contain' }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )}
