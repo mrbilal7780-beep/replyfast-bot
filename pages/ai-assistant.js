@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Bot, Send, Loader, Sparkles, TrendingUp, Calendar, DollarSign, MessageSquare, Users } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bot, Send, Loader, Sparkles, TrendingUp, Calendar, DollarSign, MessageSquare, Users, AlertTriangle, RefreshCw, WifiOff } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { getSectorById } from '../lib/sectors';
@@ -12,6 +12,8 @@ export default function AIAssistant() {
   const [loading, setLoading] = useState(false);
   const [context, setContext] = useState(null);
   const [totalCost, setTotalCost] = useState(0);
+  const [error, setError] = useState(null);
+  const [contextError, setContextError] = useState(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -32,55 +34,77 @@ export default function AIAssistant() {
   };
 
   const loadBusinessContext = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    try {
+      setContextError(null);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-    // Charger TOUTES les données
-    const { data: client } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('email', session.user.email)
-      .single();
+      // Charger TOUTES les données avec gestion d'erreurs
+      const { data: client, error: clientError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('email', session.user.email)
+        .single();
 
-    const { data: appointments } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('client_email', session.user.email);
+      if (clientError && clientError.code !== 'PGRST116') {
+        throw new Error('Erreur lors du chargement de vos informations client');
+      }
 
-    const { data: businessInfo } = await supabase
-      .from('business_info')
-      .select('*')
-      .eq('client_email', session.user.email)
-      .single();
+      const { data: appointments, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('client_email', session.user.email);
 
-    const { data: messages } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('client_email', session.user.email);
+      if (appointmentsError) {
+        console.warn('⚠️ Erreur chargement RDV:', appointmentsError);
+      }
 
-    const confirmedRdv = appointments?.filter(a => a.status === 'confirmed').length || 0;
-    const cancelledRdv = appointments?.filter(a => a.status === 'cancelled').length || 0;
-    const sentMessages = messages?.filter(m => m.direction === 'sent').length || 0;
-    const receivedMessages = messages?.filter(m => m.direction === 'received').length || 0;
+      const { data: businessInfo, error: businessError } = await supabase
+        .from('business_info')
+        .select('*')
+        .eq('client_email', session.user.email)
+        .single();
 
-    // 🎯 FIX: Obtenir le nom lisible du secteur au lieu de l'ID
-    const sectorInfo = client?.sector ? getSectorById(client.sector) : null;
-    const sectorName = sectorInfo?.name || 'Non défini';
+      if (businessError && businessError.code !== 'PGRST116') {
+        console.warn('⚠️ Erreur chargement business_info:', businessError);
+      }
 
-    setContext({
-      sector: sectorName,
-      companyName: client?.company_name || businessInfo?.nom_entreprise || 'Votre entreprise',
-      totalAppointments: appointments?.length || 0,
-      confirmedAppointments: confirmedRdv,
-      cancelledAppointments: cancelledRdv,
-      totalMessages: messages?.length || 0,
-      sentMessages: sentMessages,
-      receivedMessages: receivedMessages,
-      responseRate: receivedMessages > 0 ? Math.round((sentMessages / receivedMessages) * 100) : 0,
-      businessInfo: businessInfo,
-      horaires: businessInfo?.horaires || {},
-      tarifs: businessInfo?.tarifs || {}
-    });
+      const { data: messages, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('client_email', session.user.email);
+
+      if (messagesError) {
+        console.warn('⚠️ Erreur chargement messages:', messagesError);
+      }
+
+      const confirmedRdv = appointments?.filter(a => a.status === 'confirmed').length || 0;
+      const cancelledRdv = appointments?.filter(a => a.status === 'cancelled').length || 0;
+      const sentMessages = messages?.filter(m => m.direction === 'sent').length || 0;
+      const receivedMessages = messages?.filter(m => m.direction === 'received').length || 0;
+
+      // 🎯 FIX: Obtenir le nom lisible du secteur au lieu de l'ID
+      const sectorInfo = client?.sector ? getSectorById(client.sector) : null;
+      const sectorName = sectorInfo?.name || 'Non défini';
+
+      setContext({
+        sector: sectorName,
+        companyName: client?.company_name || businessInfo?.nom_entreprise || 'Votre entreprise',
+        totalAppointments: appointments?.length || 0,
+        confirmedAppointments: confirmedRdv,
+        cancelledAppointments: cancelledRdv,
+        totalMessages: messages?.length || 0,
+        sentMessages: sentMessages,
+        receivedMessages: receivedMessages,
+        responseRate: receivedMessages > 0 ? Math.round((sentMessages / receivedMessages) * 100) : 0,
+        businessInfo: businessInfo,
+        horaires: businessInfo?.horaires || {},
+        tarifs: businessInfo?.tarifs || {}
+      });
+    } catch (error) {
+      console.error('❌ Erreur loadBusinessContext:', error);
+      setContextError(error.message || 'Erreur lors du chargement de vos données business');
+    }
   };
 
   const loadChatHistory = async () => {
@@ -111,20 +135,25 @@ export default function AIAssistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSend = async () => {
+  const handleSend = async (retryCount = 0) => {
     if (!input.trim() || loading) return;
 
     const userMessage = { role: 'user', content: input };
+    const currentInput = input;
     setMessages([...messages, userMessage]);
     setInput('');
     setLoading(true);
+    setError(null);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        throw new Error('Session expirée. Veuillez vous reconnecter.');
+        throw new Error('SESSION_EXPIRED');
       }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
@@ -135,24 +164,39 @@ export default function AIAssistant() {
         body: JSON.stringify({
           messages: [...messages, userMessage],
           context: { ...context, companyEmail: session.user.email }
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'Erreur lors de la communication avec l\'assistant');
+      if (!response.ok) {
+        // Gestion spécifique des erreurs HTTP
+        if (response.status === 429) {
+          throw new Error('RATE_LIMIT');
+        } else if (response.status === 500) {
+          throw new Error('SERVER_ERROR');
+        } else if (response.status === 401) {
+          throw new Error('UNAUTHORIZED');
+        }
+        throw new Error(data.error || 'UNKNOWN_ERROR');
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
       }
 
       const assistantMessage = { role: 'assistant', content: data.response };
       setMessages([...messages, userMessage, assistantMessage]);
 
       // Sauvegarder dans la base
-      await supabase.from('ai_assistant_chats').insert([
+      const { error: dbError } = await supabase.from('ai_assistant_chats').insert([
         {
           client_email: session.user.email,
           message_role: 'user',
-          message_content: input,
+          message_content: currentInput,
           tokens_used: data.tokens,
           cost_estimate: data.cost
         },
@@ -165,13 +209,57 @@ export default function AIAssistant() {
         }
       ]);
 
+      if (dbError) {
+        console.error('⚠️ Erreur sauvegarde chat:', dbError);
+      }
+
       setTotalCost(totalCost + (data.cost || 0));
     } catch (error) {
-      console.error('Erreur Assistant IA:', error);
+      console.error('❌ Erreur Assistant IA:', error);
+
+      let errorMessage = '';
+      let canRetry = false;
+
+      // Gestion des différents types d'erreurs
+      if (error.name === 'AbortError') {
+        errorMessage = '⏱️ La requête a pris trop de temps. Réessayez avec une question plus courte.';
+        canRetry = retryCount < 2;
+      } else if (error.message === 'SESSION_EXPIRED') {
+        errorMessage = '🔒 Votre session a expiré. Veuillez vous reconnecter.';
+        setTimeout(() => router.push('/login'), 2000);
+      } else if (error.message === 'RATE_LIMIT') {
+        errorMessage = '⚠️ Trop de requêtes. Attendez quelques secondes avant de réessayer.';
+      } else if (error.message === 'SERVER_ERROR') {
+        errorMessage = '🔧 Erreur serveur. Nos équipes ont été notifiées. Réessayez dans quelques instants.';
+        canRetry = retryCount < 1;
+      } else if (error.message === 'UNAUTHORIZED') {
+        errorMessage = '🚫 Accès non autorisé. Vérifiez vos permissions.';
+      } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        errorMessage = '📡 Problème de connexion internet. Vérifiez votre réseau.';
+        canRetry = retryCount < 2;
+      } else {
+        errorMessage = `❌ ${error.message || 'Erreur inattendue. Veuillez réessayer.'}`;
+        canRetry = retryCount < 1;
+      }
+
+      // Afficher l'erreur
+      setError(errorMessage);
+
+      // Ajouter le message d'erreur dans le chat
       setMessages([...messages, userMessage, {
         role: 'assistant',
-        content: '❌ Désolé, je rencontre un problème technique. Veuillez réessayer dans quelques instants ou contacter le support si le problème persiste.'
+        content: errorMessage + (canRetry ? '\n\n🔄 Cliquez sur le bouton ci-dessous pour réessayer.' : ''),
+        isError: true
       }]);
+
+      // Retry automatique pour certaines erreurs
+      if (canRetry && retryCount < 2) {
+        console.log(`🔄 Retry ${retryCount + 1}/2...`);
+        setTimeout(() => {
+          setInput(currentInput);
+          handleSend(retryCount + 1);
+        }, 2000 * (retryCount + 1)); // Exponential backoff
+      }
     }
 
     setLoading(false);
@@ -267,6 +355,55 @@ export default function AIAssistant() {
           )}
         </motion.div>
 
+        {/* Erreur Context */}
+        <AnimatePresence>
+          {contextError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="glass border-2 border-orange-500/50 rounded-2xl p-4 mb-6 flex items-start gap-3"
+            >
+              <AlertTriangle className="w-6 h-6 text-orange-500 flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="text-orange-500 font-bold mb-1">Erreur de chargement du contexte</h3>
+                <p className="text-gray-300 text-sm">{contextError}</p>
+              </div>
+              <button
+                onClick={loadBusinessContext}
+                className="px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg text-sm transition-all flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Réessayer
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Erreur Globale */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="glass border-2 border-red-500/50 rounded-2xl p-4 mb-6 flex items-start gap-3"
+            >
+              <WifiOff className="w-6 h-6 text-red-500 flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="text-red-500 font-bold mb-1">Erreur de communication</h3>
+                <p className="text-gray-300 text-sm">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-all"
+              >
+                ✕
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Chat Container */}
         <div className="glass rounded-3xl p-6 mb-6" style={{ height: '500px', display: 'flex', flexDirection: 'column' }}>
           {/* Messages */}
@@ -298,12 +435,23 @@ export default function AIAssistant() {
                   <div className={`max-w-[80%] p-4 rounded-2xl ${
                     msg.role === 'user'
                       ? 'bg-gradient-to-r from-primary to-secondary text-white'
-                      : 'glass text-gray-200'
+                      : msg.isError
+                        ? 'bg-red-500/10 border-2 border-red-500/30 text-gray-200'
+                        : 'glass text-gray-200'
                   }`}>
                     {msg.role === 'assistant' && (
                       <div className="flex items-center gap-2 mb-2">
-                        <Bot className="w-4 h-4 text-accent" />
-                        <span className="text-xs text-accent font-semibold">Assistant IA</span>
+                        {msg.isError ? (
+                          <>
+                            <AlertTriangle className="w-4 h-4 text-red-400" />
+                            <span className="text-xs text-red-400 font-semibold">Erreur</span>
+                          </>
+                        ) : (
+                          <>
+                            <Bot className="w-4 h-4 text-accent" />
+                            <span className="text-xs text-accent font-semibold">Assistant IA</span>
+                          </>
+                        )}
                       </div>
                     )}
                     <p className="whitespace-pre-wrap">{msg.content}</p>
