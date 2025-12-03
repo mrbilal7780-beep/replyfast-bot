@@ -316,17 +316,31 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingConv(conv.id);
-                      // 🎯 FIX: Charger customer_name_override en priorité
-                      setNewName(conv.customer_name_override || conv.customer_name || '');
-                    }}
-                    className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors opacity-60 md:opacity-0 md:group-hover:opacity-100 flex-shrink-0"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/appointments?customer_phone=${encodeURIComponent(conv.customer_phone)}&customer_name=${encodeURIComponent(conv.customer_name_override || conv.customer_name || conv.customer_phone)}`);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-accent/20 hover:bg-accent/30 text-accent transition-all text-sm font-semibold opacity-60 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1.5"
+                      title="Proposer un rendez-vous"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      <span className="hidden sm:inline">RDV</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingConv(conv.id);
+                        // 🎯 FIX: Charger customer_name_override en priorité
+                        setNewName(conv.customer_name_override || conv.customer_name || '');
+                      }}
+                      className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors opacity-60 md:opacity-0 md:group-hover:opacity-100"
+                      title="Renommer le client"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </motion.div>
               ))}
             </div>
