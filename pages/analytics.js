@@ -87,10 +87,10 @@ export default function Analytics() {
       const receivedMessages = messages?.filter(m => m.direction === 'received').length || 0;
       const responseRate = receivedMessages > 0 ? Math.round((sentMessages / receivedMessages) * 100) : 0;
 
-      // Calculer revenu total (RDV terminés)
+      // Calculer revenu total (RDV terminés) - NE PAS afficher si pas de prix configuré
       const completedAppointments = appointments?.filter(a => a.status === 'completed') || [];
-      const avgPrice = businessInfo?.tarifs?.default || 30; // Prix moyen par défaut
-      const totalRevenue = completedAppointments.length * avgPrice;
+      const avgPrice = businessInfo?.tarifs?.default || null;
+      const totalRevenue = avgPrice ? completedAppointments.length * avgPrice : null;
 
       setStats({
         totalMessages,
@@ -317,7 +317,7 @@ export default function Analytics() {
                 { label: 'Messages totaux', value: stats.totalMessages, icon: MessageSquare, color: 'primary', bg: 'from-primary/20 to-primary/5' },
                 { label: 'Conversations', value: stats.totalConversations, icon: Users, color: 'secondary', bg: 'from-secondary/20 to-secondary/5' },
                 { label: 'Rendez-vous', value: stats.totalAppointments, icon: Calendar, color: 'accent', bg: 'from-accent/20 to-accent/5' },
-                { label: 'Revenu Total', value: `${stats.totalRevenue}€`, icon: DollarSign, color: 'secondary', bg: 'from-secondary/20 to-secondary/5' },
+                ...(stats.totalRevenue !== null ? [{ label: 'Revenu Total', value: `${stats.totalRevenue}€`, icon: DollarSign, color: 'secondary', bg: 'from-secondary/20 to-secondary/5' }] : []),
               ].map((stat, i) => (
                 <motion.div
                   key={i}

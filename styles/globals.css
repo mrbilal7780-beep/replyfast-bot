@@ -19,13 +19,17 @@
   --border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* THÈME CLAIR - Contraste amélioré avec fond gris doux */
+/* THÈME CLAIR - Coloré et moderne */
 [data-theme="light"] {
-  --bg-main: #f3f4f6;
-  --bg-glass: rgba(255, 255, 255, 0.7);
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --border-color: rgba(0, 0, 0, 0.1);
+  --bg-main: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --bg-glass: rgba(255, 255, 255, 0.9);
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --border-color: rgba(102, 126, 234, 0.2);
+}
+
+[data-theme="light"] body {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
 /* THÈME CYBER BLACK - Style futuriste néon */

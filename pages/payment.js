@@ -263,6 +263,40 @@ export default function Payment() {
             </div>
           ) : (
             <>
+              {/* Badge Beta Tester */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass p-6 rounded-3xl mb-6 border-2 border-accent/50 relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-accent/20 to-transparent rounded-full blur-2xl"></div>
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center">
+                      <Star className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">
+                        Beta Tester #1
+                      </h3>
+                      <p className="text-accent text-sm font-semibold">
+                        Accès Premium Gratuit
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-xl">
+                    <p className="text-white mb-2">
+                      <Sparkles className="w-4 h-4 inline mr-2 text-accent" />
+                      Vous faites partie des premiers utilisateurs de ReplyFast AI
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      Profitez d'un accès gratuit et illimité jusqu'au lancement officiel.
+                      Votre feedback est précieux pour améliorer l'application.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
               {/* Statut abonnement */}
               <div className="glass p-6 rounded-3xl mb-6">
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">

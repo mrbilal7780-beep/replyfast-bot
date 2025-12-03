@@ -185,6 +185,58 @@ export default function MenuManager() {
     }
   };
 
+  // 🔥 Réinitialiser l'inventaire avec le template du secteur
+  const resetInventoryToSector = async () => {
+    if (!confirm('⚠️ Voulez-vous vraiment réinitialiser votre inventaire avec le template de votre secteur ? Cette action est irréversible.')) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: client } = await supabase
+        .from('clients')
+        .select('sector')
+        .eq('email', session.user.email)
+        .single();
+
+      if (!client?.sector) {
+        alert('❌ Secteur introuvable');
+        return;
+      }
+
+      // Supprimer l'inventaire existant
+      await supabase
+        .from('inventory_items')
+        .delete()
+        .eq('client_email', session.user.email);
+
+      // Réinitialiser avec le template
+      const defaultItems = getDefaultInventoryBySector(client.sector);
+      const { data: insertedItems } = await supabase
+        .from('inventory_items')
+        .insert(
+          defaultItems.map(item => ({
+            client_email: session.user.email,
+            name: item.name,
+            unit: item.unit,
+            sold_today: item.sold_today,
+            stock: item.stock
+          }))
+        )
+        .select();
+
+      if (insertedItems) {
+        setInventory(insertedItems);
+        alert('✅ Inventaire réinitialisé avec succès !');
+      }
+    } catch (error) {
+      console.error('❌ Erreur réinitialisation:', error);
+      alert('❌ Erreur: ' + error.message);
+    }
+  };
+
   // 🔥 NOUVEAU: Sauvegarder un item d'inventaire dans la DB
   const saveInventoryItem = async (item) => {
     try {
@@ -1006,6 +1058,13 @@ export default function MenuManager() {
                     Suivez vos ventes quotidiennes et gérez vos stocks
                   </p>
                 </div>
+                <button
+                  onClick={resetInventoryToSector}
+                  className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-xl transition-colors flex items-center gap-2"
+                >
+                  <TrendingUpIcon className="w-4 h-4" />
+                  Réinitialiser avec mon secteur
+                </button>
               </div>
 
               {/* Liste Inventaire */}
