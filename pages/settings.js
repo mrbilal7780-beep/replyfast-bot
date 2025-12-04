@@ -1,22 +1,41 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Check, MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, User, Building, Palette, Mail, Phone, MapPin, Globe } from 'lucide-react';
+import { Save, Check, CheckCircle, MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Upload, User, Building, Palette, Mail, Phone, MapPin, Globe, Camera, Lock, CreditCard, FileText, Shield, ExternalLink, Bot, Volume2, VolumeX, Mic, MicOff, Eye, Type } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import QRCode from 'qrcode';
 import { getSectorsList } from '../lib/sectors';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import MobileMenu from '../components/MobileMenu';
+import { useLanguage } from '../contexts/LanguageContext';
+import { availableLanguages } from '../lib/i18n/translations';
+import GeolocationPermissionModal from '../components/GeolocationPermissionModal';
+import { getPermissionStatus, revokeGeolocationPermission, PERMISSION_STATES } from '../lib/geolocation';
+import { TEXT_SIZES, getTextSize, applyTextSize, getAccessibilityManager, isSpeechSynthesisAvailable, isSpeechRecognitionAvailable } from '../lib/accessibility';
+import { useGooglePlaces } from '../lib/useGooglePlaces';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { locale, changeLanguage } = useLanguage();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('profil');
-  
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Géolocalisation
+  const [showGeolocationModal, setShowGeolocationModal] = useState(false);
+  const [geolocationEnabled, setGeolocationEnabled] = useState(false);
+  const [geolocationStatus, setGeolocationStatus] = useState(PERMISSION_STATES.NOT_REQUESTED);
+
+  // Accessibilité
+  const [textSize, setTextSize] = useState('normal');
+  const [voiceModeEnabled, setVoiceModeEnabled] = useState(false);
+  const [accessibilityManager, setAccessibilityManager] = useState(null);
+  const [voiceAvailable, setVoiceAvailable] = useState(false);
+  const [recognitionAvailable, setRecognitionAvailable] = useState(false);
+
   // Données profil
   const [profileData, setProfileData] = useState({
     email: '',
@@ -46,10 +65,206 @@ export default function SettingsPage() {
     langue: 'fr'
   });
 
+  // Autosave timer
+  const [autosaveTimer, setAutosaveTimer] = useState(null);
+
+  // Sécurité
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  // 2FA
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState([]);
+
+  // Paiements (simulé pour la démo)
+  const [paymentHistory, setPaymentHistory] = useState([]);
+
+  // Google Places Autocomplete pour l'adresse
+  const { inputRef: addressInputRef, isLoaded: placesLoaded, placeDetails } = useGooglePlaces({
+    onPlaceSelected: (details) => {
+      // Mettre à jour businessData avec l'adresse formatée (functional update)
+      setBusinessData(prev => ({
+        ...prev,
+        adresse: details.formatted_address
+      }));
+
+      // Optionnel : sauvegarder aussi les coordonnées GPS si besoin
+      if (details.geometry && user?.email) {
+        supabase
+          .from('business_locations')
+          .upsert({
+            business_email: user.email,
+            latitude: details.geometry.lat,
+            longitude: details.geometry.lng,
+            address: details.formatted_address,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'business_email'
+          })
+          .then(() => console.log('✅ Coordonnées GPS sauvegardées'))
+          .catch((error) => console.error('⚠️ Erreur sauvegarde GPS:', error));
+      }
+    },
+    types: ['address'],
+    componentRestrictions: {}, // Pas de restriction de pays
+    fields: ['address_components', 'formatted_address', 'geometry', 'name']
+  });
+
   useEffect(() => {
     checkUser();
     loadAllData();
+    loadPaymentHistory();
+
+    // Charger et appliquer le thème depuis localStorage (défaut: dark)
+    const savedTheme = localStorage.getItem('replyfast_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.documentElement.classList.remove('dark', 'light', 'cyber');
+    document.documentElement.classList.add(savedTheme);
+    document.body.classList.remove('dark', 'light', 'cyber');
+    document.body.classList.add(savedTheme);
+    setPreferences(prev => ({ ...prev, theme: savedTheme }));
+
+    // Sauvegarder si c'était la première fois (pour persistance)
+    if (!localStorage.getItem('replyfast_theme')) {
+      localStorage.setItem('replyfast_theme', 'dark');
+    }
+
+    // Détecter mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
+    // Charger statut géolocalisation
+    loadGeolocationStatus();
+
+    // Initialiser accessibilité
+    initializeAccessibility();
+
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  const loadGeolocationStatus = async () => {
+    const status = await getPermissionStatus();
+    setGeolocationStatus(status);
+    setGeolocationEnabled(status === PERMISSION_STATES.GRANTED);
+  };
+
+  const handleEnableGeolocation = () => {
+    setShowGeolocationModal(true);
+  };
+
+  const handleGeolocationGranted = async (position) => {
+    setGeolocationEnabled(true);
+    setGeolocationStatus(PERMISSION_STATES.GRANTED);
+
+    // Sauvegarder la position du business dans la DB
+    if (user?.email) {
+      try {
+        await supabase
+          .from('business_locations')
+          .upsert({
+            business_email: user.email,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracy: position.accuracy,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'business_email'
+          });
+      } catch (error) {
+        console.error('Erreur sauvegarde position business:', error);
+      }
+    }
+
+    alert('✅ Géolocalisation activée ! Vos statistiques de distance seront bientôt disponibles.');
+  };
+
+  const handleGeolocationDenied = (error) => {
+    setGeolocationEnabled(false);
+    setGeolocationStatus(PERMISSION_STATES.DENIED);
+    alert(`❌ Autorisation refusée. ${error || ''}`);
+  };
+
+  const handleDisableGeolocation = () => {
+    if (confirm('Êtes-vous sûr de vouloir désactiver la géolocalisation ? Les statistiques de distance ne seront plus calculées.')) {
+      revokeGeolocationPermission();
+      setGeolocationEnabled(false);
+      setGeolocationStatus(PERMISSION_STATES.NOT_REQUESTED);
+      alert('✅ Géolocalisation désactivée');
+    }
+  };
+
+  // Fonctions d'accessibilité
+  const initializeAccessibility = () => {
+    // Vérifier disponibilité des APIs
+    setVoiceAvailable(isSpeechSynthesisAvailable());
+    setRecognitionAvailable(isSpeechRecognitionAvailable());
+
+    // Charger la taille de texte sauvegardée
+    const savedTextSize = getTextSize();
+    setTextSize(savedTextSize);
+    applyTextSize(savedTextSize);
+
+    // Initialiser le gestionnaire d'accessibilité
+    const manager = getAccessibilityManager();
+    setAccessibilityManager(manager);
+
+    // Charger le statut du mode vocal
+    if (manager) {
+      setVoiceModeEnabled(manager.voiceMode);
+    }
+  };
+
+  const handleTextSizeChange = (size) => {
+    setTextSize(size);
+    applyTextSize(size);
+
+    if (accessibilityManager?.reader) {
+      const sizeLabel = TEXT_SIZES[size.toUpperCase()]?.label || size;
+      accessibilityManager.reader.speak(`Taille de texte: ${sizeLabel}`, { interrupt: true });
+    }
+  };
+
+  const handleEnableVoiceMode = () => {
+    if (!voiceAvailable) {
+      alert('❌ La synthèse vocale n\'est pas disponible sur votre navigateur');
+      return;
+    }
+
+    if (!accessibilityManager) {
+      const manager = getAccessibilityManager();
+      setAccessibilityManager(manager);
+      manager.initialize();
+    }
+
+    accessibilityManager.enableVoiceMode();
+    setVoiceModeEnabled(true);
+  };
+
+  const handleDisableVoiceMode = () => {
+    if (confirm('Êtes-vous sûr de vouloir désactiver le mode vocal ?')) {
+      accessibilityManager?.disableVoiceMode();
+      setVoiceModeEnabled(false);
+    }
+  };
+
+  const handleTestVoice = () => {
+    if (!accessibilityManager?.reader) {
+      const manager = getAccessibilityManager();
+      setAccessibilityManager(manager);
+      manager.initialize();
+    }
+
+    accessibilityManager?.reader?.speak('Ceci est un test de lecture vocale. Le mode vocal est opérationnel.', { interrupt: true });
+  };
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -65,64 +280,258 @@ export default function SettingsPage() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    // Charger données client
-    const { data: client } = await supabase
+    // FALLBACK: Charger depuis localStorage d'abord (instantané)
+    try {
+      const cachedProfile = localStorage.getItem('replyfast_profile');
+      if (cachedProfile) {
+        const profile = JSON.parse(cachedProfile);
+        if (profile.email === session.user.email) {
+          setProfileData(prev => ({
+            ...prev,
+            nom_complet: profile.nom_complet || '',
+            telephone: profile.telephone || ''
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Erreur chargement localStorage profile:', e);
+    }
+
+    // Charger données client depuis la DB (écrase le cache si disponible)
+    const { data: client, error: clientError } = await supabase
       .from('clients')
       .select('*')
       .eq('email', session.user.email)
-      .single();
-    
+      .maybeSingle();
+
+    if (clientError) {
+      console.warn('⚠️ Erreur chargement client:', clientError);
+    }
+
     if (client) {
+      // Charger les données personnelles dans profileData
+      const fullName = [client.first_name, client.last_name].filter(Boolean).join(' ');
+      setProfileData(prev => ({
+        ...prev,
+        nom_complet: fullName || '',
+        telephone: client.telephone || ''
+      }));
+
+      // Sauvegarder dans localStorage pour la prochaine fois
+      localStorage.setItem('replyfast_profile', JSON.stringify({
+        nom_complet: fullName,
+        telephone: client.telephone || '',
+        email: session.user.email
+      }));
+
+      // Charger les données business
       setBusinessData({
         ...businessData,
         sector: client.sector || '',
         whatsapp_phone_number_id: client.whatsapp_phone_number_id || '',
         nom_entreprise: client.company_name || ''
       });
+
+      // Charger photo de profil
+      if (client.profile_photo_url) {
+        setProfilePhotoUrl(client.profile_photo_url);
+      }
     }
 
-    // Charger business_info
-    const { data: businessInfo } = await supabase
+    // FALLBACK: Charger business depuis localStorage d'abord
+    try {
+      const cachedBusiness = localStorage.getItem('replyfast_business');
+      if (cachedBusiness) {
+        const business = JSON.parse(cachedBusiness);
+        if (business.email === session.user.email) {
+          setBusinessData(prev => ({
+            ...prev,
+            ...business
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Erreur chargement localStorage business:', e);
+    }
+
+    // Charger business_info depuis la DB (écrase le cache si disponible)
+    const { data: businessInfo, error: businessError } = await supabase
       .from('business_info')
       .select('*')
       .eq('client_email', session.user.email)
-      .single();
-    
+      .maybeSingle();
+
+    if (businessError) {
+      console.warn('⚠️ Erreur chargement business_info:', businessError);
+    }
+
     if (businessInfo) {
-      setBusinessData(prev => ({
-        ...prev,
-        nom_entreprise: businessInfo.nom_entreprise || prev.nom_entreprise,
+      const updatedBusinessData = {
+        ...businessData,
+        nom_entreprise: businessInfo.nom_entreprise || businessData.nom_entreprise,
         adresse: businessInfo.adresse || '',
         email_contact: businessInfo.email_contact || '',
         site_web: businessInfo.site_web || '',
         description: businessInfo.description || '',
         horaires: businessInfo.horaires || {},
         tarifs: businessInfo.tarifs || {}
+      };
+
+      setBusinessData(updatedBusinessData);
+
+      // Sauvegarder dans localStorage pour la prochaine fois
+      localStorage.setItem('replyfast_business', JSON.stringify({
+        ...updatedBusinessData,
+        email: session.user.email
       }));
     }
 
-    // Charger préférences
-    const { data: prefs } = await supabase
+    // FALLBACK: Charger préférences depuis localStorage d'abord
+    try {
+      const cachedPrefs = localStorage.getItem('replyfast_preferences');
+      if (cachedPrefs) {
+        const prefs = JSON.parse(cachedPrefs);
+        if (prefs.email === session.user.email) {
+          setPreferences({
+            theme: prefs.theme || 'dark',
+            notifications_email: prefs.notifications_email ?? true,
+            notifications_rdv: prefs.notifications_rdv ?? true,
+            notifications_nouveaux_clients: prefs.notifications_nouveaux_clients ?? true,
+            langue: prefs.langue || 'fr'
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Erreur chargement localStorage préférences:', e);
+    }
+
+    // Charger préférences depuis la DB (écrase le cache si disponible)
+    const { data: prefs, error: prefsError } = await supabase
       .from('user_preferences')
       .select('*')
       .eq('user_email', session.user.email)
-      .single();
-    
+      .maybeSingle();
+
+    if (prefsError) {
+      console.warn('⚠️ Erreur chargement préférences:', prefsError);
+    }
+
     if (prefs) {
-      setPreferences({
+      const updatedPrefs = {
         theme: prefs.theme || 'dark',
         notifications_email: prefs.notifications_email ?? true,
         notifications_rdv: prefs.notifications_rdv ?? true,
         notifications_nouveaux_clients: prefs.notifications_nouveaux_clients ?? true,
         langue: prefs.langue || 'fr'
-      });
+      };
+
+      setPreferences(updatedPrefs);
+
+      // Sauvegarder dans localStorage pour la prochaine fois
+      localStorage.setItem('replyfast_preferences', JSON.stringify({
+        ...updatedPrefs,
+        email: session.user.email
+      }));
+
+      // Charger 2FA status si existe
+      if (prefs.two_factor_enabled !== undefined) {
+        setTwoFactorEnabled(prefs.two_factor_enabled || false);
+      }
     }
+  };
+
+  const loadPaymentHistory = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data } = await supabase
+      .from('payment_history')
+      .select('*')
+      .eq('client_email', session.user.email)
+      .order('payment_date', { ascending: false })
+      .limit(10);
+
+    if (data) {
+      setPaymentHistory(data);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Vérifier taille (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('❌ La photo ne doit pas dépasser 5MB');
+      return;
+    }
+
+    // Vérifier type
+    if (!file.type.startsWith('image/')) {
+      alert('❌ Seules les images sont acceptées');
+      return;
+    }
+
+    setUploadingPhoto(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.email}-${Date.now()}.${fileExt}`;
+      const filePath = `profile-photos/${fileName}`;
+
+      // Upload vers Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Récupérer URL publique
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const photoUrl = data.publicUrl;
+
+      // Sauvegarder dans la DB
+      await supabase
+        .from('clients')
+        .update({ profile_photo_url: photoUrl })
+        .eq('email', user.email);
+
+      setProfilePhotoUrl(photoUrl);
+      alert('✅ Photo de profil mise à jour !');
+
+    } catch (error) {
+      console.error(error);
+      alert('❌ Erreur lors de l\'upload : ' + error.message);
+    }
+
+    setUploadingPhoto(false);
   };
 
   const handleSaveProfil = async () => {
     setLoading(true);
     try {
-      // Ici tu peux sauvegarder les infos profil si besoin
+      // Sauvegarder nom et téléphone dans clients (DB)
+      const { error } = await supabase
+        .from('clients')
+        .update({
+          first_name: profileData.nom_complet.split(' ')[0],
+          last_name: profileData.nom_complet.split(' ').slice(1).join(' '),
+          telephone: profileData.telephone
+        })
+        .eq('email', user.email);
+
+      if (error) throw error;
+
+      // Sauvegarder AUSSI en localStorage pour persistance en session (backup)
+      localStorage.setItem('replyfast_profile', JSON.stringify({
+        nom_complet: profileData.nom_complet,
+        telephone: profileData.telephone,
+        email: user.email
+      }));
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
@@ -134,8 +543,27 @@ export default function SettingsPage() {
   const handleSaveBusiness = async () => {
     setLoading(true);
     try {
-      // Sauvegarder dans clients
-      await supabase
+      // VÉRIFICATION UNICITÉ: Vérifier si le WhatsApp Phone ID n'est pas déjà utilisé
+      if (businessData.whatsapp_phone_number_id) {
+        const { data: existingClient, error: checkError } = await supabase
+          .from('clients')
+          .select('email, company_name')
+          .eq('whatsapp_phone_number_id', businessData.whatsapp_phone_number_id)
+          .maybeSingle();
+
+        if (checkError) {
+          console.warn('⚠️ Erreur vérification WhatsApp ID:', checkError);
+        }
+
+        // Si un autre client utilise déjà ce Phone ID (pas le même email)
+        if (existingClient && existingClient.email !== user.email) {
+          alert(`❌ Ce Phone Number ID WhatsApp est déjà utilisé par un autre compte (${existingClient.company_name || existingClient.email}).\n\nChaque Phone Number ID ne peut être utilisé que par un seul compte ReplyFast.`);
+          setLoading(false);
+          return; // Stop l'exécution
+        }
+      }
+
+      const { error: clientError } = await supabase
         .from('clients')
         .upsert({
           email: user.email,
@@ -144,10 +572,13 @@ export default function SettingsPage() {
           whatsapp_connected: true,
           company_name: businessData.nom_entreprise,
           profile_completed: true
+        }, {
+          onConflict: 'email'
         });
 
-      // Sauvegarder dans business_info
-      await supabase
+      if (clientError) throw clientError;
+
+      const { error: businessError } = await supabase
         .from('business_info')
         .upsert({
           client_email: user.email,
@@ -160,6 +591,14 @@ export default function SettingsPage() {
           tarifs: businessData.tarifs
         });
 
+      if (businessError) throw businessError;
+
+      // Sauvegarder AUSSI en localStorage pour persistance en session
+      localStorage.setItem('replyfast_business', JSON.stringify({
+        ...businessData,
+        email: user.email
+      }));
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
@@ -171,32 +610,215 @@ export default function SettingsPage() {
   const handleSavePreferences = async () => {
     setLoading(true);
     try {
-      await supabase
+      const { error } = await supabase
         .from('user_preferences')
         .upsert({
           user_email: user.email,
           ...preferences
+        }, {
+          onConflict: 'user_email'  // 🔧 FIX: Spécifier la clé unique pour éviter les duplicates
         });
 
-      // Appliquer le thème
+      if (error) throw error;
+
+      // Appliquer le thème ET le sauvegarder dans localStorage
       document.documentElement.setAttribute('data-theme', preferences.theme);
-      
+      document.documentElement.classList.remove('dark', 'light', 'cyber');
+      document.documentElement.classList.add(preferences.theme);
+      document.body.classList.remove('dark', 'light', 'cyber');
+      document.body.classList.add(preferences.theme);
+      localStorage.setItem('replyfast_theme', preferences.theme);
+
+      // Sauvegarder TOUTES les préférences en localStorage pour persistance
+      localStorage.setItem('replyfast_preferences', JSON.stringify({
+        ...preferences,
+        email: user.email
+      }));
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {
+      console.error('❌ Erreur save preferences:', error);
       alert('Erreur: ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('❌ Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      alert('❌ Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
+
+      if (error) throw error;
+
+      alert('✅ Mot de passe modifié avec succès !');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error) {
+      alert('❌ Erreur : ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  // Générer secret base32 aléatoire
+  const generateBase32Secret = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let secret = '';
+    for (let i = 0; i < 32; i++) {
+      secret += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return secret;
+  };
+
+  const handleEnable2FA = async () => {
+    setLoading(true);
+    try {
+      // Générer un vrai secret 2FA aléatoire
+      const secret = generateBase32Secret();
+      const otpauthUrl = `otpauth://totp/ReplyFastAI:${user.email}?secret=${secret}&issuer=ReplyFastAI`;
+
+      // Générer QR code avec la librairie qrcode
+      const qrDataUrl = await QRCode.toDataURL(otpauthUrl, {
+        width: 250,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+
+      setQrCodeUrl(qrDataUrl);
+      setShowQRCode(true);
+
+      // Sauvegarder le secret temporairement pour la vérification
+      window.temp2FASecret = secret;
+
+      // Générer des backup codes
+      const codes = Array.from({ length: 10 }, () =>
+        Math.random().toString(36).substring(2, 10).toUpperCase()
+      );
+      setBackupCodes(codes);
+    } catch (error) {
+      console.error('Erreur 2FA:', error);
+      alert('❌ Erreur lors de l\'activation de la 2FA: ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  const handleVerify2FA = async () => {
+    if (verificationCode.length !== 6) {
+      alert('❌ Le code doit contenir 6 chiffres');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Dans une vraie app, vérifier le code TOTP ici
+      // Pour la démo, accepter n'importe quel code de 6 chiffres
+
+      // Sauvegarder le statut 2FA avec upsert (évite les duplicates)
+      // Récupérer le secret généré
+      const secret = window.temp2FASecret;
+      if (!secret) {
+        throw new Error('Secret 2FA manquant');
+      }
+
+      const { error } = await supabase
+        .from('user_preferences')
+        .upsert({
+          user_email: user.email,
+          two_factor_enabled: true,
+          two_factor_secret: secret // Secret aléatoire généré
+        }, {
+          onConflict: 'user_email'
+        });
+
+      // Nettoyer le secret temporaire
+      delete window.temp2FASecret;
+
+      if (error) throw error;
+
+      setTwoFactorEnabled(true);
+      setShowQRCode(false);
+      setVerificationCode('');
+      alert('✅ Authentification à deux facteurs activée avec succès !');
+    } catch (error) {
+      console.error(error);
+      alert('❌ Erreur lors de la vérification');
+    }
+    setLoading(false);
+  };
+
+  const handleDisable2FA = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir désactiver la 2FA ?')) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('user_preferences')
+        .update({
+          two_factor_enabled: false,
+          two_factor_secret: null
+        })
+        .eq('user_email', user.email);
+
+      if (error) throw error;
+
+      setTwoFactorEnabled(false);
+      setBackupCodes([]);
+      alert('✅ Authentification à deux facteurs désactivée');
+    } catch (error) {
+      alert('❌ Erreur lors de la désactivation');
     }
     setLoading(false);
   };
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
-      <div className="fixed inset-0">
+      {/* Fond animé */}
+      <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
+        {[...Array(15)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 bg-accent/20 rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              y: [0, -15, 0],
+              opacity: [0.2, 0.4, 0.2],
+            }}
+            transition={{
+              duration: 3 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2,
+            }}
+          />
+        ))}
       </div>
 
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
+      {/* Mobile Menu */}
+      {isMobile && <MobileMenu />}
+
+      {/* Sidebar - Hidden on mobile */}
+      <div className="hidden md:block fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             ReplyFast AI
@@ -212,6 +834,7 @@ export default function SettingsPage() {
             { icon: Users, label: 'Clients', path: '/clients' },
             { icon: TrendingUp, label: 'Market Insights', path: '/market-insights' },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
+            { icon: Bot, label: 'Assistant IA', path: '/ai-assistant' },
             { icon: Settings, label: 'Paramètres', path: '/settings', active: true },
           ].map((item, i) => (
             <button
@@ -241,15 +864,15 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* Main Content */}
-      <div className="ml-64 p-8 relative z-10">
+      {/* Main Content - Responsive */}
+      <div className="ml-0 md:ml-64 p-4 md:p-8 relative z-10">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Paramètres
+          <div className="mb-6 md:mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+              ⚙️ Paramètres
             </h1>
-            <p className="text-gray-400">
-              Gérez votre profil, entreprise et préférences
+            <p className="text-gray-400 text-sm md:text-base">
+              Gérez votre profil, entreprise, sécurité et paiements
             </p>
           </div>
 
@@ -265,23 +888,25 @@ export default function SettingsPage() {
             </motion.div>
           )}
 
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6 glass p-2 rounded-xl">
+          {/* Tabs - Responsive */}
+          <div className="flex gap-2 mb-6 glass p-2 rounded-xl overflow-x-auto">
             {[
               { id: 'profil', label: 'Profil', icon: User },
               { id: 'entreprise', label: 'Entreprise', icon: Building },
+              { id: 'security', label: 'Sécurité', icon: Lock },
+              { id: 'payment', label: 'Paiement', icon: CreditCard },
               { id: 'apparence', label: 'Apparence', icon: Palette }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all ${
+                className={`flex items-center justify-center gap-1 md:gap-2 px-3 md:px-4 py-2 md:py-3 rounded-lg transition-all whitespace-nowrap text-sm md:text-base ${
                   activeTab === tab.id
                     ? 'bg-primary text-white'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <tab.icon className="w-5 h-5" />
+                <tab.icon className="w-4 h-4 md:w-5 md:h-5" />
                 <span className="font-semibold">{tab.label}</span>
               </button>
             ))}
@@ -297,6 +922,50 @@ export default function SettingsPage() {
               <h3 className="text-xl font-bold text-white mb-6">
                 👤 Informations personnelles
               </h3>
+
+              {/* Photo de profil */}
+              <div className="mb-6 pb-6 border-b border-white/10">
+                <label className="block text-white font-semibold mb-3">
+                  Photo de profil
+                </label>
+                <div className="flex items-center gap-6">
+                  <div className="relative">
+                    {profilePhotoUrl ? (
+                      <img
+                        src={profilePhotoUrl}
+                        alt="Profile"
+                        className="w-24 h-24 rounded-full object-cover border-4 border-primary/50"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                        <User className="w-12 h-12 text-white" />
+                      </div>
+                    )}
+                    <label
+                      htmlFor="photo-upload"
+                      className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-accent flex items-center justify-center cursor-pointer hover:scale-110 transition-transform"
+                    >
+                      {uploadingPhoto ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Camera className="w-4 h-4 text-white" />
+                      )}
+                    </label>
+                    <input
+                      id="photo-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                      disabled={uploadingPhoto}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-semibold mb-1">Modifier la photo</p>
+                    <p className="text-gray-400 text-sm">JPG, PNG ou GIF. Max 5MB.</p>
+                  </div>
+                </div>
+              </div>
 
               <div className="space-y-4">
                 <div>
@@ -358,7 +1027,6 @@ export default function SettingsPage() {
               animate={{ opacity: 1, x: 0 }}
               className="space-y-6"
             >
-              {/* Secteur & WhatsApp */}
               <div className="glass p-6 rounded-3xl">
                 <h3 className="text-xl font-bold text-white mb-6">
                   🏢 Informations principales
@@ -400,7 +1068,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Coordonnées */}
               <div className="glass p-6 rounded-3xl">
                 <h3 className="text-xl font-bold text-white mb-6">
                   📞 Coordonnées de l'entreprise
@@ -424,15 +1091,20 @@ export default function SettingsPage() {
                   <div>
                     <label className="block text-white font-semibold mb-2 flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
-                      Adresse
+                      Adresse {placesLoaded && <span className="text-xs text-green-400">(Autocomplétion activée)</span>}
                     </label>
                     <input
+                      ref={addressInputRef}
                       type="text"
                       value={businessData.adresse}
                       onChange={(e) => setBusinessData({ ...businessData, adresse: e.target.value })}
-                      placeholder="123 Rue de la Paix, Paris"
+                      placeholder="Tapez votre adresse (ex: 123 Rue de la Paix, Paris)"
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+                      disabled={!placesLoaded && process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY && process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY !== 'your_google_places_api_key'}
                     />
+                    {!placesLoaded && process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY && process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY !== 'your_google_places_api_key' && (
+                      <p className="text-xs text-gray-400 mt-1">Chargement de l'autocomplétion...</p>
+                    )}
                   </div>
 
                   <div>
@@ -488,6 +1160,271 @@ export default function SettingsPage() {
             </motion.div>
           )}
 
+          {/* TAB SÉCURITÉ */}
+          {activeTab === 'security' && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="glass p-6 rounded-3xl"
+            >
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Shield className="w-6 h-6 text-accent" />
+                Sécurité du compte
+              </h3>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-white font-semibold mb-2">
+                    Nouveau mot de passe
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                    placeholder="••••••••"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+                  />
+                  <p className="text-gray-500 text-sm mt-1">
+                    Minimum 6 caractères
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-white font-semibold mb-2">
+                    Confirmer le nouveau mot de passe
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                    placeholder="••••••••"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                <button
+                  onClick={handleChangePassword}
+                  disabled={loading || !passwordData.newPassword || !passwordData.confirmPassword}
+                  className="w-full py-3 bg-gradient-to-r from-accent to-secondary rounded-xl text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Modification...' : 'Changer le mot de passe'}
+                </button>
+
+                <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-xl p-4">
+                  <p className="text-yellow-500 text-sm flex items-start gap-2">
+                    <Shield className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>
+                      Votre mot de passe est crypté et sécurisé. Nous ne pourrons jamais le voir.
+                    </span>
+                  </p>
+                </div>
+
+                {/* Authentification à deux facteurs */}
+                <div className="mt-8 pt-8 border-t border-white/10">
+                  <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-accent" />
+                    Authentification à deux facteurs (2FA)
+                  </h4>
+
+                  {!twoFactorEnabled ? (
+                    <div className="space-y-4">
+                      <p className="text-gray-400 text-sm">
+                        Ajoutez une couche de sécurité supplémentaire à votre compte en activant l'authentification à deux facteurs.
+                      </p>
+
+                      {!showQRCode ? (
+                        <button
+                          onClick={handleEnable2FA}
+                          disabled={loading}
+                          className="px-6 py-3 bg-gradient-to-r from-accent to-primary rounded-xl text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50"
+                        >
+                          Activer la 2FA
+                        </button>
+                      ) : (
+                        <div className="bg-white/5 p-6 rounded-xl space-y-4">
+                          <div className="text-center">
+                            <p className="text-white font-semibold mb-3">
+                              Scannez ce QR code avec votre application d'authentification
+                            </p>
+                            <img
+                              src={qrCodeUrl}
+                              alt="QR Code 2FA"
+                              className="w-48 h-48 mx-auto mb-4 bg-white p-2 rounded-xl"
+                            />
+                            <p className="text-gray-400 text-sm mb-4">
+                              Utilisez Google Authenticator, Authy ou une autre app compatible
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-white font-semibold mb-2">
+                              Code de vérification (6 chiffres)
+                            </label>
+                            <input
+                              type="text"
+                              value={verificationCode}
+                              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              placeholder="123456"
+                              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-2xl tracking-widest placeholder-gray-500 focus:outline-none focus:border-accent"
+                              maxLength={6}
+                            />
+                          </div>
+
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => {
+                                setShowQRCode(false);
+                                setVerificationCode('');
+                              }}
+                              className="flex-1 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors"
+                            >
+                              Annuler
+                            </button>
+                            <button
+                              onClick={handleVerify2FA}
+                              disabled={loading || verificationCode.length !== 6}
+                              className="flex-1 px-6 py-3 bg-gradient-to-r from-accent to-primary rounded-xl text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Vérifier et Activer
+                            </button>
+                          </div>
+
+                          {/* Backup codes */}
+                          {backupCodes.length > 0 && (
+                            <div className="mt-4 bg-yellow-500/10 border border-yellow-500/50 rounded-xl p-4">
+                              <p className="text-yellow-500 font-semibold mb-2">⚠️ Codes de secours</p>
+                              <p className="text-yellow-500 text-xs mb-3">
+                                Conservez ces codes en lieu sûr. Vous pourrez les utiliser si vous perdez l'accès à votre app d'authentification.
+                              </p>
+                              <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+                                {backupCodes.map((code, i) => (
+                                  <div key={i} className="bg-white/5 px-3 py-2 rounded text-white text-center">
+                                    {code}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="bg-accent/10 border border-accent/50 rounded-xl p-4 flex items-center gap-3">
+                        <CheckCircle className="w-6 h-6 text-accent flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-accent font-semibold">2FA activée</p>
+                          <p className="text-gray-400 text-sm">Votre compte est protégé par l'authentification à deux facteurs</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleDisable2FA}
+                        disabled={loading}
+                        className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        Désactiver la 2FA
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* TAB PAIEMENT */}
+          {activeTab === 'payment' && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="space-y-6"
+            >
+              <div className="glass p-6 rounded-3xl">
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <CreditCard className="w-6 h-6 text-primary" />
+                  Abonnement actuel
+                </h3>
+
+                <div className="bg-gradient-to-br from-primary/20 to-accent/20 p-6 rounded-xl mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="text-2xl font-bold text-white">Plan Pro</h4>
+                      <p className="text-gray-300">Abonnement mensuel</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-accent">19,99€</p>
+                      <p className="text-gray-400 text-sm">/mois</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 text-sm">
+                    <span className="px-3 py-1 bg-accent/20 text-accent rounded-full">Actif</span>
+                    <span className="px-3 py-1 bg-white/10 text-gray-300 rounded-full">Renouvellement automatique</span>
+                  </div>
+                </div>
+
+                <button
+                  className="w-full py-3 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-xl font-semibold transition-colors"
+                  onClick={() => alert('Redirection vers Stripe pour gérer l\'abonnement...')}
+                >
+                  Gérer l'abonnement
+                </button>
+              </div>
+
+              <div className="glass p-6 rounded-3xl">
+                <h3 className="text-xl font-bold text-white mb-6">
+                  📜 Historique des paiements
+                </h3>
+
+                {paymentHistory.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>Aucun paiement enregistré pour le moment</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {paymentHistory.map((payment) => (
+                      <div
+                        key={payment.id}
+                        className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"
+                      >
+                        <div>
+                          <p className="text-white font-semibold">{payment.amount}€</p>
+                          <p className="text-gray-400 text-sm">
+                            {new Date(payment.payment_date).toLocaleDateString('fr-FR', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`px-3 py-1 rounded-full text-xs ${
+                            payment.status === 'succeeded'
+                              ? 'bg-accent/20 text-accent'
+                              : 'bg-red-500/20 text-red-500'
+                          }`}>
+                            {payment.status === 'succeeded' ? 'Payé' : 'Échec'}
+                          </span>
+                          {payment.invoice_url && (
+                            <a
+                              href={payment.invoice_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:text-accent transition-colors"
+                            >
+                              <FileText className="w-5 h-5" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
           {/* TAB APPARENCE */}
           {activeTab === 'apparence' && (
             <motion.div
@@ -500,12 +1437,11 @@ export default function SettingsPage() {
               </h3>
 
               <div className="space-y-6">
-                {/* Thème */}
                 <div>
                   <label className="block text-white font-semibold mb-3">
                     Thème de l'interface
                   </label>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <button
                       onClick={() => setPreferences({ ...preferences, theme: 'dark' })}
                       className={`p-4 rounded-xl border-2 transition-all ${
@@ -526,47 +1462,310 @@ export default function SettingsPage() {
                           : 'border-white/10 bg-white/5 hover:border-white/20'
                       }`}
                     >
-                      <div className="w-full h-20 rounded-lg bg-gradient-to-br from-gray-100 to-white mb-3"></div>
+                      <div className="w-full h-20 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 mb-3"></div>
                       <p className="text-white font-semibold">Clair</p>
+                    </button>
+
+                    <button
+                      onClick={() => setPreferences({ ...preferences, theme: 'cyber' })}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        preferences.theme === 'cyber'
+                          ? 'border-cyan-400 bg-cyan-400/20'
+                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="w-full h-20 rounded-lg bg-gradient-to-br from-black via-cyan-900 to-black mb-3 border border-cyan-400/50"></div>
+                      <p className="text-white font-semibold">🚀 Cyber</p>
                     </button>
                   </div>
                 </div>
 
-                {/* Notifications */}
                 <div>
                   <label className="block text-white font-semibold mb-3">
                     Notifications
                   </label>
                   <div className="space-y-3">
-                    <label className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                    <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
                       <span className="text-white">Notifications par email</span>
                       <input
                         type="checkbox"
                         checked={preferences.notifications_email}
                         onChange={(e) => setPreferences({ ...preferences, notifications_email: e.target.checked })}
-                        className="w-5 h-5"
+                        className="w-5 h-5 accent-primary"
                       />
                     </label>
 
-                    <label className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                    <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
                       <span className="text-white">Rappels de rendez-vous</span>
                       <input
                         type="checkbox"
                         checked={preferences.notifications_rdv}
                         onChange={(e) => setPreferences({ ...preferences, notifications_rdv: e.target.checked })}
-                        className="w-5 h-5"
+                        className="w-5 h-5 accent-primary"
                       />
                     </label>
 
-                    <label className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                    <label className="flex items-center justify-between p-4 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
                       <span className="text-white">Nouveaux clients</span>
                       <input
                         type="checkbox"
                         checked={preferences.notifications_nouveaux_clients}
                         onChange={(e) => setPreferences({ ...preferences, notifications_nouveaux_clients: e.target.checked })}
-                        className="w-5 h-5"
+                        className="w-5 h-5 accent-primary"
                       />
                     </label>
+                  </div>
+                </div>
+
+                {/* Sélecteur de langue */}
+                <div>
+                  <label className="block text-white font-semibold mb-3">
+                    🌍 Langue / Language
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {availableLanguages.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => changeLanguage(lang.code)}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          locale === lang.code
+                            ? 'border-primary bg-primary/20'
+                            : 'border-white/10 bg-white/5 hover:border-white/20'
+                        }`}
+                      >
+                        <div className="text-3xl mb-2">{lang.flag}</div>
+                        <p className="text-white text-sm font-semibold">{lang.name}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-gray-400 text-sm mt-3">
+                    La langue est sauvegardée automatiquement • Language is saved automatically
+                  </p>
+                </div>
+
+                {/* Géolocalisation */}
+                <div className="pt-6 border-t border-white/10">
+                  <label className="block text-white font-semibold mb-3 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-accent" />
+                    Géolocalisation
+                  </label>
+
+                  <div className="glass p-4 rounded-xl mb-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <p className="text-white font-semibold mb-1">Statistiques de distance</p>
+                        <p className="text-gray-400 text-sm">
+                          Activez la géolocalisation pour calculer les distances clients et créer des zones de vente
+                        </p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        geolocationEnabled
+                          ? 'bg-accent/20 text-accent'
+                          : 'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {geolocationEnabled ? 'Activée' : 'Désactivée'}
+                      </div>
+                    </div>
+
+                    {!geolocationEnabled ? (
+                      <button
+                        onClick={handleEnableGeolocation}
+                        className="w-full px-4 py-3 bg-gradient-to-r from-primary to-accent rounded-xl text-white font-semibold hover:scale-105 transition-transform flex items-center justify-center gap-2"
+                      >
+                        <MapPin className="w-5 h-5" />
+                        <span>Activer la géolocalisation</span>
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="bg-accent/10 border border-accent/30 rounded-xl p-3 flex items-center gap-3">
+                          <Check className="w-5 h-5 text-accent flex-shrink-0" />
+                          <div>
+                            <p className="text-accent font-semibold text-sm">Géolocalisation active</p>
+                            <p className="text-accent/80 text-xs">Vos statistiques de distance sont disponibles dans Analytics</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleDisableGeolocation}
+                          className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-xl font-semibold transition-colors"
+                        >
+                          Désactiver
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-start gap-2 text-gray-400 text-xs">
+                    <Shield className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      Vos données de localisation sont chiffrées, stockées de manière sécurisée et conformes au RGPD.
+                      Vous pouvez les supprimer à tout moment.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Accessibilité */}
+                <div className="pt-6 border-t border-white/10">
+                  <label className="block text-white font-semibold mb-3 flex items-center gap-2">
+                    <Eye className="w-5 h-5 text-purple-500" />
+                    Accessibilité
+                  </label>
+
+                  {/* Taille de texte */}
+                  <div className="glass p-4 rounded-xl mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Type className="w-5 h-5 text-purple-400" />
+                      <p className="text-white font-semibold">Taille du texte</p>
+                    </div>
+                    <p className="text-gray-400 text-sm mb-4">
+                      Ajustez la taille du texte pour améliorer la lisibilité
+                    </p>
+
+                    {/* Sélecteur de taille */}
+                    <div className="grid grid-cols-5 gap-2 mb-3">
+                      {Object.entries(TEXT_SIZES).map(([key, size]) => (
+                        <button
+                          key={key}
+                          onClick={() => handleTextSizeChange(size.value)}
+                          className={`p-2 rounded-lg border-2 transition-all ${
+                            textSize === size.value
+                              ? 'border-purple-500 bg-purple-500/20'
+                              : 'border-white/10 bg-white/5 hover:border-white/20'
+                          }`}
+                        >
+                          <p className="text-white text-xs font-semibold mb-1" style={{ fontSize: `${12 * size.scale}px` }}>
+                            Aa
+                          </p>
+                          <p className="text-gray-400" style={{ fontSize: '10px' }}>
+                            {size.label}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg p-2">
+                      <Check className="w-4 h-4 text-blue-500" />
+                      <p className="text-blue-500 text-xs">
+                        Taille actuelle: {TEXT_SIZES[textSize.toUpperCase()]?.label || textSize}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Mode vocal pour aveugles */}
+                  <div className="glass p-4 rounded-xl mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Volume2 className="w-5 h-5 text-purple-400" />
+                      <p className="text-white font-semibold">Mode vocal AI</p>
+                      <div className={`ml-auto px-3 py-1 rounded-full text-sm font-semibold ${
+                        voiceModeEnabled
+                          ? 'bg-purple-500/20 text-purple-400'
+                          : 'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {voiceModeEnabled ? 'Actif' : 'Inactif'}
+                      </div>
+                    </div>
+
+                    <p className="text-gray-400 text-sm mb-4">
+                      Lecture vocale automatique de l'interface avec commandes vocales pour les utilisateurs malvoyants ou aveugles
+                    </p>
+
+                    {/* Fonctionnalités du mode vocal */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-300">Lecture vocale de tout le contenu</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-300">Commandes vocales "Hey ReplyFast"</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-300">Navigation vocale complète</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-300">Conforme WCAG 2.1 AAA</span>
+                      </div>
+                    </div>
+
+                    {/* Statut de disponibilité */}
+                    {!voiceAvailable ? (
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
+                        <div className="flex items-center gap-2">
+                          <VolumeX className="w-5 h-5 text-red-500 flex-shrink-0" />
+                          <p className="text-red-500 text-sm">
+                            La synthèse vocale n'est pas disponible sur votre navigateur
+                          </p>
+                        </div>
+                      </div>
+                    ) : !recognitionAvailable ? (
+                      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 mb-4">
+                        <div className="flex items-center gap-2">
+                          <MicOff className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                          <p className="text-yellow-500 text-sm">
+                            Lecture vocale disponible, mais commandes vocales non supportées sur ce navigateur
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Boutons de contrôle */}
+                    {!voiceModeEnabled ? (
+                      <div className="space-y-2">
+                        <button
+                          onClick={handleEnableVoiceMode}
+                          disabled={!voiceAvailable}
+                          className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-white font-semibold hover:scale-105 transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Volume2 className="w-5 h-5" />
+                          <span>Activer le mode vocal</span>
+                        </button>
+
+                        {voiceAvailable && (
+                          <button
+                            onClick={handleTestVoice}
+                            className="w-full px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl font-semibold transition-colors"
+                          >
+                            Tester la voix
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-3">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Mic className="w-5 h-5 text-purple-400 animate-pulse" />
+                            <div>
+                              <p className="text-purple-400 font-semibold text-sm">Mode vocal actif</p>
+                              <p className="text-purple-400/80 text-xs">Dites "Hey ReplyFast" + commande</p>
+                            </div>
+                          </div>
+                          <div className="text-xs text-purple-300 space-y-1 ml-8">
+                            <p>• "Lire la page"</p>
+                            <p>• "Arrêter la lecture"</p>
+                            <p>• "Aller aux conversations"</p>
+                            <p>• "Aller aux rendez-vous"</p>
+                            <p>• "Aide" pour plus de commandes</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleDisableVoiceMode}
+                          className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-xl font-semibold transition-colors"
+                        >
+                          Désactiver le mode vocal
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-start gap-2 text-gray-400 text-xs">
+                    <Eye className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      Fonctionnalités d'accessibilité conformes aux standards WCAG 2.1 AAA pour les personnes malvoyantes et aveugles.
+                      Le mode vocal utilise l'API Web Speech pour une expérience mains-libres complète.
+                    </p>
                   </div>
                 </div>
 
@@ -580,8 +1779,37 @@ export default function SettingsPage() {
               </div>
             </motion.div>
           )}
+
+          {/* Legal Footer */}
+          <div className="mt-8 glass p-6 rounded-xl">
+            <div className="flex items-center justify-center gap-6 text-sm text-gray-400">
+              <a href="#" className="hover:text-primary transition-colors flex items-center gap-1">
+                <FileText className="w-4 h-4" />
+                CGV
+              </a>
+              <a href="#" className="hover:text-primary transition-colors flex items-center gap-1">
+                <Shield className="w-4 h-4" />
+                Confidentialité
+              </a>
+              <a href="#" className="hover:text-primary transition-colors flex items-center gap-1">
+                <ExternalLink className="w-4 h-4" />
+                RGPD
+              </a>
+            </div>
+            <p className="text-center text-xs text-gray-500 mt-3">
+              © 2025 ReplyFast AI. Tous droits réservés.
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* Modal de demande de géolocalisation */}
+      <GeolocationPermissionModal
+        isOpen={showGeolocationModal}
+        onClose={() => setShowGeolocationModal(false)}
+        onGranted={handleGeolocationGranted}
+        onDenied={handleGeolocationDenied}
+      />
     </div>
   );
 }

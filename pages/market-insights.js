@@ -1,14 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, DollarSign, Clock, Target, Upload } from 'lucide-react';
+import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, DollarSign, Clock, Target, Upload, Bot } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
+import { supabase, getSession } from '../lib/supabase';
 import { getSectorById } from '../lib/sectors';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import MobileMenu from '../components/MobileMenu';
 
 export default function MarketInsights() {
   const router = useRouter();
@@ -27,14 +23,19 @@ export default function MarketInsights() {
 
   const loadSectorInfo = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    
+
     if (session) {
-      const { data: client } = await supabase
+      const { data: client, error } = await supabase
         .from('clients')
         .select('sector')
         .eq('email', session.user.email)
-        .single();
-      
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Erreur chargement sector:', error);
+      }
+
       if (client?.sector) {
         const sector = getSectorById(client.sector);
         setSectorInfo(sector);
@@ -71,11 +72,15 @@ export default function MarketInsights() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
+      {/* Mobile Menu */}
+      <MobileMenu currentPath="/market-insights" />
+
       <div className="fixed inset-0">
         <div className="absolute inset-0 gradient-bg opacity-10"></div>
       </div>
 
-      <div className="fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
+      {/* Sidebar - Hidden on mobile */}
+      <div className="hidden lg:block fixed left-0 top-0 h-full w-64 glass border-r border-white/10 p-6 z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             ReplyFast AI
@@ -91,6 +96,7 @@ export default function MarketInsights() {
             { icon: Users, label: 'Clients', path: '/clients' },
             { icon: TrendingUp, label: 'Market Insights', path: '/market-insights', active: true },
             { icon: Zap, label: 'Analytics', path: '/analytics' },
+            { icon: Bot, label: 'Assistant IA', path: '/ai-assistant' },
             { icon: Settings, label: 'Paramètres', path: '/settings' },
           ].map((item, i) => (
             <button
@@ -120,7 +126,8 @@ export default function MarketInsights() {
         </button>
       </div>
 
-      <div className="ml-64 p-8 relative z-10">
+      {/* Main Content - Responsive */}
+      <div className="lg:ml-64 p-4 lg:p-8 pt-20 lg:pt-8 relative z-10">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-4xl">{sectorInfo.emoji}</span>

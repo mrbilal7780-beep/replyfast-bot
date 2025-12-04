@@ -201,20 +201,31 @@ export default async function handler(req, res) {
 
         console.log('📱 Message reçu:', fromNumber, '|', incomingMessage);
 
-        // 1️⃣ Identifier le client
-        const { data: client } = await supabase
+        // 1️⃣ Identifier le client - Recherche plus flexible
+        let { data: client, error: clientError } = await supabase
           .from('clients')
           .select('*')
           .eq('whatsapp_phone_number_id', receivingPhoneNumberId)
-          .eq('whatsapp_connected', true)
           .single();
+
+        // Si pas trouvé par phone_number_id, essayer par waba_id
+        if (!client && value.metadata?.waba_id) {
+          const { data: clientByWaba } = await supabase
+            .from('clients')
+            .select('*')
+            .eq('waba_id', value.metadata.waba_id)
+            .single();
+          client = clientByWaba;
+        }
 
         if (!client) {
           console.error('❌ Client non trouvé pour phone_number_id:', receivingPhoneNumberId);
+          console.error('   Metadata:', JSON.stringify(value.metadata));
+          console.error('   Error:', clientError);
           return res.status(200).send('OK');
         }
 
-        console.log('✅ Client trouvé:', client.email, '| Secteur:', client.sector);
+        console.log('✅ Client trouvé:', client.email, '| Secteur:', client.sector || 'NON DÉFINI');
 
         // 2️⃣ Gérer la conversation
         let { data: conversation } = await supabase

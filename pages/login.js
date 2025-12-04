@@ -2,12 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/router';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '../lib/supabase';
 
 export default function Login() {
   const router = useRouter();
@@ -116,6 +111,7 @@ export default function Login() {
             <div className="text-right">
               <button
                 type="button"
+                onClick={() => router.push('/forgot-password')}
                 className="text-sm text-gray-400 hover:text-primary transition-colors"
               >
                 Mot de passe oublié?

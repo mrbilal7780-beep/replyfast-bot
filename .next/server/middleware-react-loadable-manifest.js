@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST='{"pages/index.js -> ../components/ParticlesBackground":{"id":32343,"files":["static/chunks/343.ed54f5d997f47a61.js"]}}';

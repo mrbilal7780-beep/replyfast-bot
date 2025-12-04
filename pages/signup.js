@@ -14,10 +14,11 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
-    company_name: '',
-    phone_number: ''
+    confirmPassword: ''
   });
 
   const handleSubmit = async (e) => {
@@ -26,6 +27,15 @@ export default function Signup() {
     setError('');
 
     try {
+      // Validation du mot de passe
+      if (formData.password !== formData.confirmPassword) {
+        throw new Error('Les mots de passe ne correspondent pas');
+      }
+
+      if (formData.password.length < 6) {
+        throw new Error('Le mot de passe doit contenir au moins 6 caractères');
+      }
+
       // 1. Créer l'utilisateur dans Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -35,21 +45,26 @@ export default function Signup() {
       if (authError) throw authError;
 
       // 2. Créer le client dans la table clients
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14 jours d'essai
+
       const { error: insertError } = await supabase
         .from('clients')
         .insert([
           {
             email: formData.email,
-            company_name: formData.company_name,
-            phone_number: formData.phone_number,
-            subscription_status: 'trial'
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            subscription_status: 'trialing',
+            trial_ends_at: trialEndsAt.toISOString(),
+            profile_completed: false
           }
         ]);
 
       if (insertError) throw insertError;
 
-      // Rediriger vers le dashboard
-      router.push('/dashboard');
+      // Rediriger vers onboarding
+      router.push('/onboarding');
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -93,20 +108,38 @@ export default function Signup() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Company Name */}
+            {/* First Name */}
             <div>
               <label className="block text-sm text-gray-400 mb-2">
-                Nom de l'entreprise
+                Prénom
               </label>
               <div className="relative">
-                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                 <input
                   type="text"
                   required
-                  value={formData.company_name}
-                  onChange={(e) => setFormData({...formData, company_name: e.target.value})}
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                   className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
-                  placeholder="Salon Coiffure"
+                  placeholder="Jean"
+                />
+              </div>
+            </div>
+
+            {/* Last Name */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">
+                Nom de famille
+              </label>
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="text"
+                  required
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
+                  placeholder="Dupont"
                 />
               </div>
             </div>
@@ -129,24 +162,6 @@ export default function Signup() {
               </div>
             </div>
 
-            {/* Phone */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                Téléphone
-              </label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone_number}
-                  onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
-                  placeholder="+32 4XX XX XX XX"
-                />
-              </div>
-            </div>
-
             {/* Password */}
             <div>
               <label className="block text-sm text-gray-400 mb-2">
@@ -159,6 +174,24 @@ export default function Signup() {
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">
+                Confirmer le mot de passe
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                <input
+                  type="password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
                   className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
                   placeholder="••••••••"
                 />
