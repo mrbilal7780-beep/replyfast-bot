@@ -4,6 +4,12 @@ import { ChevronRight, ChevronLeft, Check, Loader, Sparkles, AlertCircle } from 
 import { useRouter } from 'next/router';
 import { getSectorsList } from '../lib/sectors';
 import { supabase } from '../lib/supabase';
+import dynamic from 'next/dynamic';
+
+// Import dynamique du background (client-side only)
+const ThreeBackground = dynamic(() => import('../components/ThreeBackground'), {
+  ssr: false,
+});
 
 export default function Onboarding() {
   const router = useRouter();
@@ -249,8 +255,9 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-dark flex items-center justify-center p-4">
-      <div className="fixed inset-0 gradient-bg opacity-10"></div>
+    <div className="min-h-screen flex items-center justify-center p-4 relative" style={{ backgroundColor: '#0a0e27' }}>
+      {/* Fond animé Three.js avec cercles */}
+      <ThreeBackground />
 
       {/* Bouton "Se connecter" en haut à droite */}
       <div className="absolute top-6 right-6 z-20">
