@@ -23,6 +23,8 @@ export default async function handler(req, res) {
     // Démarrer la session WAHA
     const wahaUrl = process.env.WAHA_URL || 'http://localhost:3000';
 
+    console.log('🔗 [WAHA] Tentative connexion:', wahaUrl);
+
     const response = await fetch(`${wahaUrl}/api/sessions/start`, {
       method: 'POST',
       headers: {
@@ -43,11 +45,24 @@ export default async function handler(req, res) {
       })
     });
 
+    console.log('📡 [WAHA] Status:', response.status, response.statusText);
+
+    // Vérifier le content-type avant de parser
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('❌ [WAHA] Réponse non-JSON:', text.substring(0, 200));
+      throw new Error(`WAHA ne répond pas correctement. Status: ${response.status}. URL: ${wahaUrl}/api/sessions/start`);
+    }
+
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Erreur WAHA');
+      console.error('❌ [WAHA] Erreur:', data);
+      throw new Error(data.message || `Erreur WAHA: ${response.status}`);
     }
+
+    console.log('✅ [WAHA] Session créée:', sessionName);
 
     // Sauvegarder le session name dans Supabase
     await supabase
