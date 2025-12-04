@@ -11,6 +11,9 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const [qrCode, setQrCode] = useState(null);
+  const [sessionName, setSessionName] = useState(null);
+  const [checkingStatus, setCheckingStatus] = useState(false);
 
   // Données du formulaire
   const [formData, setFormData] = useState({
@@ -80,44 +83,81 @@ export default function Onboarding() {
     if (step > 1) setStep(step - 1);
   };
 
-  // Meta Embedded Signup
-  const handleWhatsAppConnect = () => {
-    if (typeof window === 'undefined' || !window.FB) {
-      alert('SDK Facebook non chargé. Veuillez actualiser la page et réessayer.');
-      return;
-    }
-
+  // WAHA QR Code Connection
+  const handleWhatsAppConnect = async () => {
     setLoading(true);
 
-    window.FB.login(function(response) {
-      if (response.authResponse) {
-        const phoneNumberId = response.authResponse.phone_number_id;
-        const wabaId = response.authResponse.waba_id;
+    try {
+      // Démarrer la session WAHA
+      const response = await fetch('/api/waha/start-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
+      });
 
-        // Mettre à jour le state
-        setFormData({
-          ...formData,
-          whatsapp_phone_number_id: phoneNumberId,
-          waba_id: wabaId
-        });
+      const data = await response.json();
 
-        setWhatsappConnected(true);
-        setLoading(false);
-
-        // Message de succès
-        alert('WhatsApp Business connecté avec succès.');
-      } else {
-        setLoading(false);
-        alert('Connexion annulée ou échouée. Réessayez.');
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur démarrage session');
       }
-    }, {
-      scope: 'whatsapp_business_management,whatsapp_business_messaging',
-      extras: {
-        setup: {
-          // Configuration du flow
+
+      setSessionName(data.sessionName);
+
+      // Récupérer le QR code
+      await fetchQRCode(data.sessionName);
+
+      // Commencer à vérifier le statut
+      startStatusCheck(data.sessionName);
+
+    } catch (error) {
+      console.error('Erreur connexion WAHA:', error);
+      alert('❌ Erreur: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchQRCode = async (session) => {
+    try {
+      const response = await fetch(`/api/waha/get-qr?sessionName=${session}`);
+      const data = await response.json();
+
+      if (response.ok && data.image) {
+        setQrCode(data.image);
+      }
+    } catch (error) {
+      console.error('Erreur récupération QR:', error);
+    }
+  };
+
+  const startStatusCheck = (session) => {
+    setCheckingStatus(true);
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/waha/check-status?sessionName=${session}`);
+        const data = await response.json();
+
+        if (data.status === 'WORKING') {
+          setWhatsappConnected(true);
+          setCheckingStatus(false);
+          setQrCode(null);
+          clearInterval(interval);
+          alert('✅ WhatsApp connecté avec succès !');
         }
+      } catch (error) {
+        console.error('Erreur vérification status:', error);
       }
-    });
+    }, 3000); // Vérifier toutes les 3 secondes
+
+    // Timeout après 5 minutes
+    setTimeout(() => {
+      if (!whatsappConnected) {
+        clearInterval(interval);
+        setCheckingStatus(false);
+        alert('⏱️ Timeout. Veuillez réessayer.');
+      }
+    }, 300000);
   };
 
   const handleSubmit = async () => {
@@ -437,7 +477,7 @@ export default function Onboarding() {
               </motion.div>
             )}
 
-            {/* ÉTAPE 4: WHATSAPP EMBEDDED SIGNUP */}
+            {/* ÉTAPE 4: WHATSAPP QR CODE (WAHA) */}
             {step === 4 && (
               <motion.div
                 key="step4"
@@ -446,7 +486,7 @@ export default function Onboarding() {
                 exit={{ opacity: 0, x: -20 }}
               >
                 <h2 className="text-2xl font-bold text-white mb-6">
-                  Connecter WhatsApp Business
+                  Connecter WhatsApp
                 </h2>
 
                 <div className="space-y-6">
@@ -456,44 +496,56 @@ export default function Onboarding() {
                       <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
                       <div className="text-sm text-gray-300 space-y-2">
                         <p className="font-semibold text-white">
-                          Configuration automatique en 2 minutes
+                          Scanner le QR code avec WhatsApp
                         </p>
-                        <p>
-                          En cliquant sur le bouton ci-dessous, vous allez être redirigé vers Meta (Facebook)
-                          pour connecter votre WhatsApp Business.
-                        </p>
-                        <p>
-                          <strong>Si vous n'avez pas encore de WhatsApp Business,</strong> Meta le créera
-                          automatiquement pour vous pendant le processus. C'est simple et rapide.
-                        </p>
-                        <p className="text-accent font-semibold">
-                          Vous avez déjà un compte ? Vous pouvez configurer WhatsApp plus tard dans les paramètres.
-                        </p>
+                        <ol className="list-decimal list-inside space-y-1">
+                          <li>Ouvrez WhatsApp sur votre téléphone</li>
+                          <li>Menu (⋮) → Appareils connectés → Connecter un appareil</li>
+                          <li>Scannez le QR code ci-dessous</li>
+                        </ol>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bouton de connexion */}
+                  {/* QR Code ou Bouton */}
                   {!whatsappConnected ? (
-                    <button
-                      onClick={handleWhatsAppConnect}
-                      disabled={loading}
-                      className="w-full py-4 bg-gradient-to-r from-green-600 to-green-500 rounded-xl text-white font-semibold text-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader className="w-5 h-5 animate-spin" />
-                          Connexion en cours...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                          </svg>
-                          Connecter WhatsApp Business
-                        </>
-                      )}
-                    </button>
+                    !qrCode ? (
+                      <button
+                        onClick={handleWhatsAppConnect}
+                        disabled={loading}
+                        className="w-full py-4 bg-gradient-to-r from-green-600 to-green-500 rounded-xl text-white font-semibold text-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                      >
+                        {loading ? (
+                          <>
+                            <Loader className="w-5 h-5 animate-spin" />
+                            Génération du QR code...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                            </svg>
+                            Générer le QR Code WhatsApp
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="glass p-6 rounded-2xl">
+                          <img
+                            src={qrCode}
+                            alt="QR Code WhatsApp"
+                            className="w-64 h-64 rounded-xl"
+                          />
+                        </div>
+                        {checkingStatus && (
+                          <div className="flex items-center gap-2 text-accent">
+                            <Loader className="w-5 h-5 animate-spin" />
+                            <span className="text-sm">En attente de scan...</span>
+                          </div>
+                        )}
+                      </div>
+                    )
                   ) : (
                     <div className="glass p-6 rounded-xl border border-green-500/50 bg-green-500/10">
                       <div className="flex items-center gap-3">
@@ -503,20 +555,12 @@ export default function Onboarding() {
                         <div>
                           <p className="text-white font-semibold">WhatsApp connecté avec succès!</p>
                           <p className="text-gray-300 text-sm">
-                            Votre compte WhatsApp Business est prêt à recevoir des messages.
+                            Votre compte WhatsApp est prêt à recevoir des messages.
                           </p>
                         </div>
                       </div>
                     </div>
                   )}
-
-                  {/* Info tarifs */}
-                  <div className="glass p-4 rounded-xl bg-accent/5 border border-accent/20">
-                    <p className="text-sm text-gray-300 text-center">
-                      <strong>Note:</strong> Vous pourrez configurer vos tarifs et offres spéciales
-                      directement dans le Menu Manager après l'inscription.
-                    </p>
-                  </div>
                 </div>
               </motion.div>
             )}
