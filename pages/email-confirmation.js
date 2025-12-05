@@ -54,7 +54,7 @@ export default function EmailConfirmation() {
           </motion.div>
 
           {/* Title */}
-          <h1 className="text-3xl font-bold text-white mb-4">
+          <h1 className="text-4xl font-bold text-white mb-4 tracking-tight">
             Compte créé avec succès !
           </h1>
 

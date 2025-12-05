@@ -3,6 +3,11 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, User, Building2, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
+import dynamic from 'next/dynamic';
+
+const ThreeBackground = dynamic(() => import('../components/ThreeBackground'), {
+  ssr: false,
+});
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -156,8 +161,8 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-dark flex items-center justify-center p-6">
-      <div className="fixed inset-0 gradient-bg opacity-10"></div>
+    <div className="min-h-screen flex items-center justify-center p-6 relative" style={{ backgroundColor: '#0a0e27' }}>
+      <ThreeBackground />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -177,10 +182,10 @@ export default function Signup() {
         <div className="glass p-8 rounded-3xl">
           {/* Logo */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
-              ReplyFast AI
+            <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
+              REPLYFAST <span className="font-light">AI</span>
             </h1>
-            <p className="text-gray-400">Créez votre compte</p>
+            <p className="text-gray-400 text-sm">Créez votre compte</p>
           </div>
 
           {/* Error Message */}
