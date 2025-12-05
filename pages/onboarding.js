@@ -499,7 +499,22 @@ export default function Onboarding() {
                 </h2>
 
                 <div className="space-y-6">
-                  {/* Info box */}
+                  {/* Info box OBLIGATOIRE */}
+                  <div className="glass p-6 rounded-xl border border-red-500/50 bg-red-500/10">
+                    <div className="flex items-start gap-4">
+                      <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-1" />
+                      <div className="text-sm text-gray-300 space-y-2">
+                        <p className="font-semibold text-white">
+                          ⚠️ Cette étape est OBLIGATOIRE
+                        </p>
+                        <p className="text-red-300">
+                          Vous devez connecter WhatsApp pour utiliser ReplyFast AI. Sans WhatsApp, l'application ne peut pas fonctionner.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Instructions */}
                   <div className="glass p-6 rounded-xl border border-primary/30">
                     <div className="flex items-start gap-4">
                       <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
@@ -610,7 +625,7 @@ export default function Onboarding() {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={loading || !whatsappConnected}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-primary text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {loading ? (
@@ -621,7 +636,7 @@ export default function Onboarding() {
                 ) : (
                   <>
                     <Check className="w-5 h-5" />
-                    {whatsappConnected ? 'Terminer la configuration' : 'Configurer WhatsApp plus tard'}
+                    {whatsappConnected ? 'Terminer la configuration' : 'Connectez WhatsApp pour continuer'}
                   </>
                 )}
               </button>
