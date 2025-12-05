@@ -115,23 +115,21 @@ export default function Signup() {
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/onboarding`
         }
       });
 
       if (authError) throw authError;
 
       // 2. Créer le client via API (bypass RLS)
-      const { data: { session } } = await supabase.auth.getSession();
-
       const completeSignupRes = await fetch('/api/auth/complete-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: formData.email,
           firstName: formData.firstName,
-          lastName: formData.lastName,
-          userToken: session?.access_token || authData.session?.access_token
+          lastName: formData.lastName
         })
       });
 
@@ -140,8 +138,16 @@ export default function Signup() {
         throw new Error(errorData.error || 'Erreur création compte');
       }
 
-      // 3. Rediriger vers page confirmation email
-      router.push('/email-confirmation?email=' + encodeURIComponent(formData.email));
+      // 3. Vérifier si une session a été créée (email confirmation désactivée)
+      if (authData.session) {
+        // Auto-connecté → rediriger vers onboarding
+        console.log('✅ Session créée, redirection vers onboarding');
+        router.push('/onboarding');
+      } else {
+        // Email confirmation requise → rediriger vers page d'attente
+        console.log('📧 Email confirmation requise');
+        router.push('/email-confirmation?email=' + encodeURIComponent(formData.email));
+      }
     } catch (err) {
       console.error('Erreur inscription:', err);
       setError(err.message || 'Erreur lors de l\'inscription');

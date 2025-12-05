@@ -14,21 +14,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { email, firstName, lastName, userToken } = req.body;
+    const { email, firstName, lastName } = req.body;
 
-    if (!email || !firstName || !lastName || !userToken) {
+    if (!email || !firstName || !lastName) {
       return res.status(400).json({ error: 'Données manquantes' });
     }
 
     console.log('🔐 [COMPLETE-SIGNUP] Création client pour:', email);
-
-    // Vérifier que le token est valide (sécurité)
-    const { data: { user }, error: authError } = await supabase.auth.getUser(userToken);
-
-    if (authError || !user || user.email !== email) {
-      console.error('❌ [COMPLETE-SIGNUP] Token invalide:', authError);
-      return res.status(401).json({ error: 'Token invalide' });
-    }
 
     // Créer/mettre à jour le client avec service_role (bypass RLS)
     const trialEndsAt = new Date();

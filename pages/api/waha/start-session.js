@@ -17,8 +17,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Email requis' });
     }
 
-    // Générer un nom de session unique basé sur l'email
-    const sessionName = `session_${email.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+    // WAHA gratuit ne supporte que la session "default"
+    const sessionName = 'default';
+
+    console.log('🔗 [WAHA] Démarrage session:', sessionName);
 
     // Démarrer la session WAHA
     const wahaUrl = process.env.WAHA_URL || 'http://localhost:3000';
