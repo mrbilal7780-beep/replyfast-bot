@@ -4,12 +4,14 @@ import { MessageSquare, Users, Zap, Settings, LogOut, Calendar, TrendingUp, Uplo
 import { useRouter } from 'next/router';
 import { supabase, getSession } from '../lib/supabase';
 import MobileMenu from '../components/MobileMenu';
+import TrialExpiryBanner from '../components/TrialExpiryBanner';
 import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Dashboard() {
   const router = useRouter();
   const { t } = useLanguage();
   const [user, setUser] = useState(null);
+  const [client, setClient] = useState(null);
   const [userName, setUserName] = useState('');
   const [conversations, setConversations] = useState([]);
   const [stats, setStats] = useState({
@@ -40,9 +42,9 @@ export default function Dashboard() {
 
   const loadUserName = async (email) => {
     try {
-      const { data: client, error } = await supabase
+      const { data: clientData, error } = await supabase
         .from('clients')
-        .select('first_name, last_name, company_name')
+        .select('first_name, last_name, company_name, subscription_status, trial_ends_at, stripe_customer_id')
         .eq('email', email)
         .maybeSingle();
 
@@ -50,9 +52,10 @@ export default function Dashboard() {
         console.error('Erreur loadUserName:', error);
       }
 
-      if (client) {
-        const name = client.first_name || client.company_name || 'Utilisateur';
+      if (clientData) {
+        const name = clientData.first_name || clientData.company_name || 'Utilisateur';
         setUserName(name);
+        setClient(clientData);
       }
     } catch (error) {
       console.error('Erreur dans loadUserName:', error);
@@ -122,6 +125,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-dark overflow-hidden">
+      {/* Trial Expiry Banner */}
+      <TrialExpiryBanner client={client} />
+
       {/* Mobile Menu */}
       <MobileMenu currentPath="/dashboard" />
 

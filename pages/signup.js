@@ -92,6 +92,21 @@ export default function Signup() {
         throw new Error('Veuillez utiliser un email valide et non utilisé');
       }
 
+      // 🛡️ Vérification anti-spam
+      const spamCheck = await fetch('/api/auth/check-spam', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          ip: null // L'IP sera ajoutée automatiquement côté serveur si besoin
+        })
+      });
+
+      if (!spamCheck.ok) {
+        const spamError = await spamCheck.json();
+        throw new Error(spamError.error || 'Impossible de créer un compte pour le moment');
+      }
+
       // Créer l'utilisateur dans Supabase Auth (le trigger créera automatiquement le client)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
