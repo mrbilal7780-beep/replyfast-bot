@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, Building2, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, User, Building2, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { createClient } from '@supabase/supabase-js';
 
@@ -13,6 +13,9 @@ export default function Signup() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [emailValid, setEmailValid] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -20,6 +23,55 @@ export default function Signup() {
     password: '',
     confirmPassword: ''
   });
+
+  // Vérifier si l'email existe déjà (en temps réel)
+  useEffect(() => {
+    const checkEmail = async () => {
+      if (!formData.email || formData.email.length < 3) {
+        setEmailError('');
+        setEmailValid(false);
+        return;
+      }
+
+      // Validation format email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setEmailError('Format email invalide');
+        setEmailValid(false);
+        return;
+      }
+
+      setCheckingEmail(true);
+
+      try {
+        // Vérifier dans clients
+        const { data: existingClient } = await supabase
+          .from('clients')
+          .select('email')
+          .eq('email', formData.email)
+          .maybeSingle();
+
+        if (existingClient) {
+          setEmailError('❌ Cet email est déjà utilisé');
+          setEmailValid(false);
+        } else {
+          setEmailError('');
+          setEmailValid(true);
+        }
+      } catch (err) {
+        console.error('Erreur vérification email:', err);
+      } finally {
+        setCheckingEmail(false);
+      }
+    };
+
+    // Debounce: attendre 500ms après la dernière frappe
+    const timer = setTimeout(() => {
+      checkEmail();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.email]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,37 +88,29 @@ export default function Signup() {
         throw new Error('Le mot de passe doit contenir au moins 6 caractères');
       }
 
-      // 1. Créer l'utilisateur dans Supabase Auth
+      if (!emailValid) {
+        throw new Error('Veuillez utiliser un email valide et non utilisé');
+      }
+
+      // Créer l'utilisateur dans Supabase Auth (le trigger créera automatiquement le client)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+          }
+        }
       });
 
       if (authError) throw authError;
 
-      // 2. Créer le client dans la table clients
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14 jours d'essai
-
-      const { error: insertError } = await supabase
-        .from('clients')
-        .insert([
-          {
-            email: formData.email,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            subscription_status: 'trialing',
-            trial_ends_at: trialEndsAt.toISOString(),
-            profile_completed: false
-          }
-        ]);
-
-      if (insertError) throw insertError;
-
-      // Rediriger vers onboarding
-      router.push('/onboarding');
+      // Rediriger vers login avec message de succès
+      router.push('/login?message=signup_success');
     } catch (err) {
-      setError(err.message);
+      console.error('Erreur inscription:', err);
+      setError(err.message || 'Erreur lors de l\'inscription');
       setLoading(false);
     }
   };
@@ -156,10 +200,38 @@ export default function Signup() {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
+                  className={`w-full bg-white/5 border rounded-xl pl-12 pr-12 py-3 text-white placeholder-gray-500 focus:outline-none transition-colors ${
+                    emailError ? 'border-red-500' : emailValid ? 'border-green-500' : 'border-white/10 focus:border-primary'
+                  }`}
                   placeholder="vous@exemple.com"
                 />
+                {/* Indicateur de validation */}
+                {checkingEmail && (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                  </div>
+                )}
+                {!checkingEmail && emailValid && formData.email && (
+                  <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
+                )}
+                {!checkingEmail && emailError && (
+                  <AlertCircle className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
+                )}
               </div>
+              {/* Message d'erreur email */}
+              {emailError && (
+                <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {emailError}
+                </p>
+              )}
+              {/* Message de succès */}
+              {emailValid && formData.email && !checkingEmail && (
+                <p className="text-green-500 text-sm mt-2 flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4" />
+                  ✓ Email disponible
+                </p>
+              )}
             </div>
 
             {/* Password */}
