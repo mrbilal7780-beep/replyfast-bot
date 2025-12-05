@@ -121,8 +121,31 @@ export default function Signup() {
 
       if (authError) throw authError;
 
-      // Rediriger vers login avec message de succès
-      router.push('/login?message=signup_success');
+      // 2. Créer/mettre à jour le client dans la table clients
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 30); // 1 mois d'essai gratuit
+
+      const { error: upsertError } = await supabase
+        .from('clients')
+        .upsert(
+          {
+            email: formData.email,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            subscription_status: 'trialing',
+            trial_ends_at: trialEndsAt.toISOString(),
+            profile_completed: false
+          },
+          {
+            onConflict: 'email',
+            ignoreDuplicates: false
+          }
+        );
+
+      if (upsertError) throw upsertError;
+
+      // Rediriger vers onboarding
+      router.push('/onboarding');
     } catch (err) {
       console.error('Erreur inscription:', err);
       setError(err.message || 'Erreur lors de l\'inscription');
