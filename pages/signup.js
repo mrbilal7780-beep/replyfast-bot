@@ -107,7 +107,7 @@ export default function Signup() {
         throw new Error(spamError.error || 'Impossible de créer un compte pour le moment');
       }
 
-      // Créer l'utilisateur dans Supabase Auth (le trigger créera automatiquement le client)
+      // 1. Créer l'utilisateur dans Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -121,31 +121,27 @@ export default function Signup() {
 
       if (authError) throw authError;
 
-      // 2. Créer/mettre à jour le client dans la table clients
-      const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 30); // 1 mois d'essai gratuit
+      // 2. Créer le client via API (bypass RLS)
+      const { data: { session } } = await supabase.auth.getSession();
 
-      const { error: upsertError } = await supabase
-        .from('clients')
-        .upsert(
-          {
-            email: formData.email,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            subscription_status: 'trialing',
-            trial_ends_at: trialEndsAt.toISOString(),
-            profile_completed: false
-          },
-          {
-            onConflict: 'email',
-            ignoreDuplicates: false
-          }
-        );
+      const completeSignupRes = await fetch('/api/auth/complete-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          userToken: session?.access_token || authData.session?.access_token
+        })
+      });
 
-      if (upsertError) throw upsertError;
+      if (!completeSignupRes.ok) {
+        const errorData = await completeSignupRes.json();
+        throw new Error(errorData.error || 'Erreur création compte');
+      }
 
-      // Rediriger vers onboarding
-      router.push('/onboarding');
+      // 3. Rediriger vers page confirmation email
+      router.push('/email-confirmation?email=' + encodeURIComponent(formData.email));
     } catch (err) {
       console.error('Erreur inscription:', err);
       setError(err.message || 'Erreur lors de l\'inscription');

@@ -26,8 +26,19 @@ export default function Login() {
 
       if (signInError) throw signInError;
 
-      // Rediriger vers le dashboard
-      router.push('/dashboard');
+      // Vérifier si le profil est complété
+      const { data: client } = await supabase
+        .from('clients')
+        .select('profile_completed')
+        .eq('email', formData.email)
+        .maybeSingle();
+
+      // Rediriger vers onboarding si profil non complété, sinon dashboard
+      if (client && !client.profile_completed) {
+        router.push('/onboarding');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err) {
       setError(err.message);
       setLoading(false);

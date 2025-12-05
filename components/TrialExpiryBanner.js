@@ -63,7 +63,7 @@ export default function TrialExpiryBanner({ client }) {
   };
 
   const handleAddPayment = () => {
-    router.push('/settings?tab=payment');
+    router.push('/payment-setup');
   };
 
   if (!visible || dismissed) return null;

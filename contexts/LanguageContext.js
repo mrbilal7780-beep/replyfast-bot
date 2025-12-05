@@ -8,25 +8,13 @@ export function LanguageProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Charger la langue depuis localStorage ou détecter
-    const savedLocale = localStorage.getItem('replyfast_locale');
-    if (savedLocale && availableLanguages.find(l => l.code === savedLocale)) {
-      setLocale(savedLocale);
-    } else {
-      const detected = detectBrowserLanguage();
-      setLocale(detected);
-      localStorage.setItem('replyfast_locale', detected);
-    }
+    // FORCER FRANÇAIS UNIQUEMENT (pas de détection automatique)
+    setLocale('fr');
+    localStorage.setItem('replyfast_locale', 'fr');
 
-    // Appliquer la direction pour les langues RTL
-    const lang = availableLanguages.find(l => l.code === savedLocale || l.code === locale);
-    if (lang?.dir === 'rtl') {
-      document.documentElement.setAttribute('dir', 'rtl');
-      document.documentElement.lang = locale;
-    } else {
-      document.documentElement.setAttribute('dir', 'ltr');
-      document.documentElement.lang = locale;
-    }
+    // Forcer LTR et langue française
+    document.documentElement.setAttribute('dir', 'ltr');
+    document.documentElement.lang = 'fr';
 
     setIsLoading(false);
   }, []);
