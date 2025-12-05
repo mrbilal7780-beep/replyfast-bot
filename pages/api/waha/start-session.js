@@ -42,6 +42,35 @@ export default async function handler(req, res) {
       if (data.status === 'WORKING') {
         console.log('✅ [WAHA] WhatsApp déjà connecté !');
       }
+      // Si STOPPED, il faut la redémarrer
+      else if (data.status === 'STOPPED') {
+        console.log('🔄 [WAHA] Session arrêtée, redémarrage...');
+
+        const restartResponse = await fetch(`${wahaUrl}/api/sessions/start`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': process.env.WAHA_API_KEY || ''
+          },
+          body: JSON.stringify({
+            name: sessionName,
+            config: {
+              proxy: null,
+              noweb: {
+                store: {
+                  enabled: true,
+                  fullSync: false
+                }
+              }
+            }
+          })
+        });
+
+        if (restartResponse.ok) {
+          data = await restartResponse.json();
+          console.log('✅ [WAHA] Session redémarrée');
+        }
+      }
       // Si en STARTING ou autre, on continue (le QR code viendra après)
     } else {
       // Session n'existe pas, on la crée

@@ -136,6 +136,9 @@ export default function Onboarding() {
       } else if (data.waiting && data.status === 'STARTING') {
         // Session en cours de démarrage
         setWahaError('⏳ Session WhatsApp en cours de démarrage... Veuillez patienter 5 secondes et cliquer à nouveau sur "Générer le QR Code".');
+      } else if (data.waiting && data.status === 'STOPPED') {
+        // Session arrêtée
+        setWahaError('🔄 Session WhatsApp arrêtée. Cliquez à nouveau sur "Générer le QR Code" pour la redémarrer.');
       }
     } catch (error) {
       console.error('Erreur récupération QR:', error);

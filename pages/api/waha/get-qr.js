@@ -53,6 +53,16 @@ export default async function handler(req, res) {
         });
       }
 
+      // Si la session est STOPPED, on demande de recliquer pour la redémarrer
+      if (data.status === 'STOPPED') {
+        return res.status(202).json({
+          success: false,
+          waiting: true,
+          message: 'La session WhatsApp est arrêtée. Cliquez à nouveau sur "Générer le QR Code" pour la redémarrer.',
+          status: 'STOPPED'
+        });
+      }
+
       throw new Error(data.error || data.message || 'Erreur récupération QR');
     }
 
