@@ -132,9 +132,14 @@ export default function Onboarding() {
 
       if (response.ok && data.image) {
         setQrCode(data.image);
+        setWahaError(''); // Clear error si QR obtenu
+      } else if (data.waiting && data.status === 'STARTING') {
+        // Session en cours de démarrage
+        setWahaError('⏳ Session WhatsApp en cours de démarrage... Veuillez patienter 5 secondes et cliquer à nouveau sur "Générer le QR Code".');
       }
     } catch (error) {
       console.error('Erreur récupération QR:', error);
+      setWahaError('❌ Erreur lors de la récupération du QR code. Réessayez dans quelques secondes.');
     }
   };
 

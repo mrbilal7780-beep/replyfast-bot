@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
     const wahaUrl = process.env.WAHA_URL || 'http://localhost:3000';
 
-    const response = await fetch(`${wahaUrl}/api/${sessionName}`, {
+    const response = await fetch(`${wahaUrl}/api/sessions/${sessionName}`, {
       method: 'GET',
       headers: {
         'X-Api-Key': process.env.WAHA_API_KEY || ''

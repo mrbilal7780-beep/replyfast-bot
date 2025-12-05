@@ -1,3 +1,6 @@
+// Fonction helper pour attendre
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -11,6 +14,10 @@ export default async function handler(req, res) {
     }
 
     const wahaUrl = process.env.WAHA_URL || 'http://localhost:3000';
+
+    // Attendre quelques secondes que la session démarre (passe de STARTING à SCAN_QR_CODE)
+    console.log('⏳ [WAHA QR] Attente démarrage session...');
+    await sleep(3000); // Attendre 3 secondes
 
     console.log('🔗 [WAHA QR] URL:', `${wahaUrl}/api/${sessionName}/auth/qr`);
 
@@ -35,7 +42,18 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       console.error('❌ [WAHA QR] Erreur:', data);
-      throw new Error(data.message || 'Erreur récupération QR');
+
+      // Si la session est toujours en STARTING, on retourne un message spécifique
+      if (data.status === 'STARTING') {
+        return res.status(202).json({
+          success: false,
+          waiting: true,
+          message: 'La session WhatsApp est en cours de démarrage. Veuillez patienter quelques secondes et cliquer à nouveau sur "Générer le QR Code".',
+          status: 'STARTING'
+        });
+      }
+
+      throw new Error(data.error || data.message || 'Erreur récupération QR');
     }
 
     console.log('✅ [WAHA QR] QR récupéré');
