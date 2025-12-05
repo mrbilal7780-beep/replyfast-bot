@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmez votre compte - ReplyFast AI</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); min-height: 100vh;">
+
+    <!-- Container principal -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); padding: 40px 20px;">
+        <tr>
+            <td align="center">
+
+                <!-- Card principal -->
+                <table width="600" cellpadding="0" cellspacing="0" style="background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+
+                    <!-- Header avec logo et gradient -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%); padding: 40px 40px 60px 40px; text-align: center; position: relative;">
+                            <!-- Logo/Titre -->
+                            <h1 style="margin: 0; font-size: 36px; font-weight: 900; color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,0.2); letter-spacing: -0.5px;">
+                                REPLYFAST <span style="font-weight: 300;">AI</span>
+                            </h1>
+                            <p style="margin: 10px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 16px; font-weight: 500;">
+                                Votre assistant WhatsApp intelligent
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Icône de vérification -->
+                    <tr>
+                        <td align="center" style="padding: 0; margin-top: -40px; position: relative; z-index: 10;">
+                            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3); border: 4px solid rgba(10, 14, 39, 1);">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Contenu principal -->
+                    <tr>
+                        <td style="padding: 40px 40px 30px 40px;">
+                            <h2 style="margin: 0 0 20px 0; font-size: 28px; font-weight: 700; color: #ffffff; text-align: center;">
+                                Bienvenue chez ReplyFast AI ! 🎉
+                            </h2>
+
+                            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: rgba(255, 255, 255, 0.8); text-align: center;">
+                                Nous sommes ravis de vous compter parmi nous ! Plus qu'une étape pour activer votre compte et commencer à automatiser vos conversations WhatsApp avec l'IA.
+                            </p>
+
+                            <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.6; color: rgba(255, 255, 255, 0.8); text-align: center;">
+                                Cliquez sur le bouton ci-dessous pour <strong style="color: #ffffff;">confirmer votre adresse email</strong> :
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Bouton CTA -->
+                    <tr>
+                        <td align="center" style="padding: 0 40px 40px 40px;">
+                            <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; padding: 16px 48px; border-radius: 12px; font-size: 18px; font-weight: 700; box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4); transition: all 0.3s ease;">
+                                ✅ Confirmer mon email
+                            </a>
+                        </td>
+                    </tr>
+
+                    <!-- Divider -->
+                    <tr>
+                        <td style="padding: 0 40px;">
+                            <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);"></div>
+                        </td>
+                    </tr>
+
+                    <!-- Infos supplémentaires -->
+                    <tr>
+                        <td style="padding: 30px 40px;">
+                            <div style="background: rgba(99, 102, 241, 0.1); border-left: 4px solid #6366f1; padding: 16px 20px; border-radius: 8px; margin-bottom: 20px;">
+                                <p style="margin: 0; font-size: 14px; color: rgba(255, 255, 255, 0.9); line-height: 1.6;">
+                                    <strong style="color: #ffffff;">💡 Ce qui vous attend :</strong><br>
+                                    • Connexion de votre WhatsApp en 30 secondes<br>
+                                    • Configuration de votre assistant IA personnalisé<br>
+                                    • 30 jours d'essai gratuit, sans carte bancaire<br>
+                                    • Support client réactif 24/7
+                                </p>
+                            </div>
+
+                            <p style="margin: 0; font-size: 13px; color: rgba(255, 255, 255, 0.6); line-height: 1.6;">
+                                <strong style="color: rgba(255, 255, 255, 0.8);">Le bouton ne fonctionne pas ?</strong><br>
+                                Copiez et collez ce lien dans votre navigateur :<br>
+                                <span style="color: #6366f1; word-break: break-all;">{{ .ConfirmationURL }}</span>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background: rgba(0, 0, 0, 0.2); padding: 30px 40px; text-align: center;">
+                            <p style="margin: 0 0 10px 0; font-size: 14px; color: rgba(255, 255, 255, 0.7);">
+                                <strong style="color: #ffffff;">ReplyFast AI</strong> - L'assistant WhatsApp qui ne dort jamais
+                            </p>
+
+                            <p style="margin: 0 0 15px 0; font-size: 12px; color: rgba(255, 255, 255, 0.5);">
+                                © 2025 ReplyFast AI. Tous droits réservés.
+                            </p>
+
+                            <div style="margin-top: 15px;">
+                                <a href="https://replyfast-bot.onrender.com" style="color: #6366f1; text-decoration: none; font-size: 12px; margin: 0 10px;">Site web</a>
+                                <span style="color: rgba(255, 255, 255, 0.3);">•</span>
+                                <a href="https://replyfast-bot.onrender.com/cgv" style="color: #6366f1; text-decoration: none; font-size: 12px; margin: 0 10px;">CGV</a>
+                                <span style="color: rgba(255, 255, 255, 0.3);">•</span>
+                                <a href="mailto:support@replyfast.ai" style="color: #6366f1; text-decoration: none; font-size: 12px; margin: 0 10px;">Support</a>
+                            </div>
+
+                            <p style="margin: 20px 0 0 0; font-size: 11px; color: rgba(255, 255, 255, 0.4); line-height: 1.5;">
+                                Vous recevez cet email car vous vous êtes inscrit sur ReplyFast AI.<br>
+                                Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+
+                <!-- Espace sous le card -->
+                <table width="600" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+                    <tr>
+                        <td align="center" style="padding: 0 20px;">
+                            <p style="margin: 0; font-size: 12px; color: rgba(255, 255, 255, 0.4); text-align: center; line-height: 1.6;">
+                                Ce lien de confirmation expire dans 24 heures pour des raisons de sécurité.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>
