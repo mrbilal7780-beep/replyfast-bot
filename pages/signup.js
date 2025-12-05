@@ -294,7 +294,7 @@ export default function Signup() {
 
         {/* Trial Badge */}
         <div className="text-center mt-6 text-sm text-gray-500">
-          🎁 14 jours d'essai gratuit • Sans carte bancaire
+          🎁 1 mois d'essai gratuit
         </div>
       </motion.div>
     </div>

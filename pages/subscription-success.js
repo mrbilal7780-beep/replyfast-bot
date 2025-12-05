@@ -60,7 +60,7 @@ export default function SubscriptionSuccess() {
             className="space-y-4"
           >
             <p className="text-xl text-gray-300">
-              Votre essai gratuit de 14 jours commence maintenant
+              Votre essai gratuit d'1 mois commence maintenant
             </p>
 
             <div className="glass p-6 rounded-xl bg-accent/5 border border-accent/20">
@@ -80,7 +80,7 @@ export default function SubscriptionSuccess() {
             </div>
 
             <p className="text-gray-400 text-sm">
-              Après 14 jours, vous serez facturé 19,99€/mois.
+              Après 1 mois, vous serez facturé 19,99€/mois.
               <br />
               Vous pouvez annuler à tout moment depuis vos paramètres.
             </p>

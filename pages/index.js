@@ -63,9 +63,23 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden relative" style={{ backgroundColor: '#0a0e27' }}>
-      {/* Fond animé Three.js avec cercles */}
-      <ThreeBackground />
+    <div className="min-h-screen overflow-hidden relative" style={{
+      background: 'linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1729 100%)'
+    }}>
+      {/* Fond animé CSS (bulles + particules) */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        {/* Bulles animées */}
+        <div className="absolute top-20 left-10 w-64 h-64 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-40 right-20 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute bottom-20 left-1/4 w-80 h-80 bg-accent/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute bottom-40 right-1/3 w-72 h-72 bg-primary/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }}></div>
+
+        {/* Grille */}
+        <div className="absolute inset-0 opacity-10" style={{
+          backgroundImage: 'linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px)',
+          backgroundSize: '50px 50px'
+        }}></div>
+      </div>
 
       {/* Logo fixe en haut à gauche */}
       <motion.div

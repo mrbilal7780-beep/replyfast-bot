@@ -61,7 +61,7 @@ export default function CGV() {
                 <strong>Prix :</strong> 19,99€ HT/mois par utilisateur
               </p>
               <p className="mt-2">
-                <strong>Période d'essai :</strong> 14 jours gratuits sans engagement. Aucun paiement n'est requis pendant la période d'essai.
+                <strong>Période d'essai :</strong> 1 mois gratuit sans engagement. Aucun paiement n'est requis pendant la période d'essai.
               </p>
               <p className="mt-2">
                 <strong>Facturation :</strong> Mensuelle, automatique par prélèvement via Stripe. La première facturation intervient
@@ -83,7 +83,7 @@ export default function CGV() {
                 au prorata n'est effectué.
               </p>
               <p className="mt-2">
-                <strong>Période d'essai :</strong> Vous pouvez annuler gratuitement pendant les 14 premiers jours
+                <strong>Période d'essai :</strong> Vous pouvez annuler gratuitement pendant le premier mois
                 sans aucun frais.
               </p>
             </section>
