@@ -44,13 +44,22 @@ export default async function handler(req, res) {
                 enabled: true,
                 fullSync: false
               }
-            }
+            },
+            webhooks: [
+              {
+                url: 'https://replyfast-bot.onrender.com/api/waha/webhook',
+                events: ['message', 'session.status'],
+                hmac: null,
+                retries: null,
+                customHeaders: null
+              }
+            ]
           }
         })
       });
 
       const startData = await startResponse.json();
-      console.log('✅ [KEEP-ALIVE] Session créée:', startData.status);
+      console.log('✅ [KEEP-ALIVE] Session créée avec webhooks:', startData.status);
 
       return res.status(200).json({
         success: true,
@@ -81,13 +90,22 @@ export default async function handler(req, res) {
                 enabled: true,
                 fullSync: false
               }
-            }
+            },
+            webhooks: [
+              {
+                url: 'https://replyfast-bot.onrender.com/api/waha/webhook',
+                events: ['message', 'session.status'],
+                hmac: null,
+                retries: null,
+                customHeaders: null
+              }
+            ]
           }
         })
       });
 
       const restartData = await restartResponse.json();
-      console.log('✅ [KEEP-ALIVE] Session redémarrée');
+      console.log('✅ [KEEP-ALIVE] Session redémarrée avec webhooks');
 
       return res.status(200).json({
         success: true,
