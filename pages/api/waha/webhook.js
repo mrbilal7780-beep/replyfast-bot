@@ -243,6 +243,63 @@ async function handleSessionStatus(event) {
   const { session, payload } = event;
   console.log('📱 [WAHA] Session status:', session, payload.status);
 
+  // Si WhatsApp vient de se connecter, configurer les webhooks automatiquement
+  if (payload.status === 'WORKING') {
+    console.log('✅ [WAHA] WhatsApp connecté ! Configuration automatique des webhooks...');
+
+    // Vérifier si les webhooks sont déjà configurés
+    try {
+      const wahaUrl = process.env.WAHA_URL || 'http://localhost:3000';
+
+      // Récupérer la config actuelle de la session
+      const sessionResponse = await fetch(`${wahaUrl}/api/sessions/${session}`, {
+        method: 'GET',
+        headers: {
+          'X-Api-Key': process.env.WAHA_API_KEY || ''
+        }
+      });
+
+      if (sessionResponse.ok) {
+        const sessionData = await sessionResponse.json();
+
+        // Vérifier si webhooks déjà configurés
+        const hasWebhooks = sessionData.config?.webhooks?.some(
+          w => w.url?.includes('/api/waha/webhook')
+        );
+
+        if (!hasWebhooks) {
+          console.log('🔗 [WAHA] Ajout automatique des webhooks...');
+
+          // Ajouter les webhooks
+          const webhookResponse = await fetch(`${wahaUrl}/api/sessions/${session}/webhooks`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Api-Key': process.env.WAHA_API_KEY || ''
+            },
+            body: JSON.stringify({
+              url: 'https://replyfast-bot.onrender.com/api/waha/webhook',
+              events: ['message', 'session.status'],
+              hmac: null,
+              retries: null,
+              customHeaders: null
+            })
+          });
+
+          if (webhookResponse.ok) {
+            console.log('✅ [WAHA] Webhooks configurés automatiquement ! Le bot est maintenant actif.');
+          } else {
+            console.error('❌ [WAHA] Erreur config webhooks:', await webhookResponse.text());
+          }
+        } else {
+          console.log('✅ [WAHA] Webhooks déjà configurés.');
+        }
+      }
+    } catch (error) {
+      console.error('❌ [WAHA] Erreur config auto webhooks:', error);
+    }
+  }
+
   // Mettre à jour le statut dans la DB
   await supabase
     .from('clients')
