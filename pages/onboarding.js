@@ -21,6 +21,9 @@ export default function Onboarding() {
   const [sessionName, setSessionName] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [wahaError, setWahaError] = useState('');
+  const [connectionMethod, setConnectionMethod] = useState('qr'); // 'qr' ou 'pairing'
+  const [pairingCode, setPairingCode] = useState(null);
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   // Données du formulaire
   const [formData, setFormData] = useState({
@@ -174,6 +177,64 @@ export default function Onboarding() {
         alert('⏱️ Timeout. Veuillez réessayer.');
       }
     }, 300000);
+  };
+
+  const handlePairingCode = async () => {
+    setLoading(true);
+    setWahaError('');
+    setPairingCode(null);
+
+    try {
+      // Valider le numéro
+      if (!phoneNumber || phoneNumber.length < 10) {
+        throw new Error('Veuillez entrer un numéro de téléphone valide');
+      }
+
+      // Démarrer la session WAHA
+      const sessionResponse = await fetch('/api/waha/start-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
+      });
+
+      const sessionData = await sessionResponse.json();
+
+      if (!sessionResponse.ok) {
+        throw new Error(sessionData.error || 'Erreur démarrage session');
+      }
+
+      setSessionName(sessionData.sessionName);
+
+      // Attendre 5 secondes que la session soit prête
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // Demander un code de couplage
+      const pairingResponse = await fetch('/api/waha/get-pairing-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionName: sessionData.sessionName,
+          phoneNumber: phoneNumber
+        })
+      });
+
+      const pairingData = await pairingResponse.json();
+
+      if (!pairingResponse.ok) {
+        throw new Error(pairingData.error || 'Erreur génération code');
+      }
+
+      setPairingCode(pairingData.code);
+
+      // Commencer à vérifier le statut
+      startStatusCheck(sessionData.sessionName);
+
+    } catch (error) {
+      console.error('Erreur pairing code:', error);
+      setWahaError(`⚠️ ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -522,71 +583,193 @@ export default function Onboarding() {
                     </div>
                   </div>
 
-                  {/* Instructions */}
-                  <div className="glass p-6 rounded-xl border border-primary/30">
-                    <div className="flex items-start gap-4">
-                      <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
-                      <div className="text-sm text-gray-300 space-y-2">
-                        <p className="font-semibold text-white">
-                          Scanner le QR code avec WhatsApp
-                        </p>
-                        <ol className="list-decimal list-inside space-y-1">
-                          <li>Ouvrez WhatsApp sur votre téléphone</li>
-                          <li>Menu (⋮) → Appareils connectés → Connecter un appareil</li>
-                          <li>Scannez le QR code ci-dessous</li>
-                        </ol>
-                      </div>
+                  {/* Toggle méthode de connexion */}
+                  <div className="glass p-4 rounded-xl">
+                    <p className="text-white font-semibold mb-3">Choisissez votre méthode de connexion :</p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          setConnectionMethod('qr');
+                          setWahaError('');
+                          setPairingCode(null);
+                        }}
+                        className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all ${
+                          connectionMethod === 'qr'
+                            ? 'bg-gradient-to-r from-primary to-secondary text-white'
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                        }`}
+                      >
+                        📱 QR Code
+                      </button>
+                      <button
+                        onClick={() => {
+                          setConnectionMethod('pairing');
+                          setWahaError('');
+                          setQrCode(null);
+                        }}
+                        className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-all ${
+                          connectionMethod === 'pairing'
+                            ? 'bg-gradient-to-r from-primary to-secondary text-white'
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                        }`}
+                      >
+                        🔢 Code de couplage
+                      </button>
                     </div>
                   </div>
 
-                  {/* QR Code ou Bouton */}
-                  {!whatsappConnected ? (
-                    !qrCode ? (
-                      <>
-                        <button
-                          onClick={handleWhatsAppConnect}
-                          disabled={loading}
-                          className="w-full py-4 bg-gradient-to-r from-green-600 to-green-500 rounded-xl text-white font-semibold text-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                        >
-                          {loading ? (
-                            <>
-                              <Loader className="w-5 h-5 animate-spin" />
-                              Génération du QR code...
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                              </svg>
-                              Générer le QR Code WhatsApp
-                            </>
-                          )}
-                        </button>
-
-                        {/* Message d'erreur WAHA */}
-                        {wahaError && (
-                          <div className="glass p-4 rounded-xl bg-orange-500/10 border border-orange-500/50">
-                            <p className="text-orange-300 text-sm">{wahaError}</p>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="glass p-6 rounded-2xl">
-                          <img
-                            src={qrCode}
-                            alt="QR Code WhatsApp"
-                            className="w-64 h-64 rounded-xl"
-                          />
+                  {/* Instructions QR Code */}
+                  {connectionMethod === 'qr' && (
+                    <div className="glass p-6 rounded-xl border border-primary/30">
+                      <div className="flex items-start gap-4">
+                        <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                        <div className="text-sm text-gray-300 space-y-2">
+                          <p className="font-semibold text-white">
+                            Scanner le QR code avec WhatsApp
+                          </p>
+                          <ol className="list-decimal list-inside space-y-1">
+                            <li>Ouvrez WhatsApp sur votre téléphone</li>
+                            <li>Menu (⋮) → Appareils connectés → Connecter un appareil</li>
+                            <li>Scannez le QR code ci-dessous</li>
+                          </ol>
                         </div>
-                        {checkingStatus && (
-                          <div className="flex items-center gap-2 text-accent">
-                            <Loader className="w-5 h-5 animate-spin" />
-                            <span className="text-sm">En attente de scan...</span>
-                          </div>
-                        )}
                       </div>
-                    )
+                    </div>
+                  )}
+
+                  {/* Instructions Code de couplage */}
+                  {connectionMethod === 'pairing' && (
+                    <div className="glass p-6 rounded-xl border border-green-500/30">
+                      <div className="flex items-start gap-4">
+                        <AlertCircle className="w-6 h-6 text-green-400 flex-shrink-0 mt-1" />
+                        <div className="text-sm text-gray-300 space-y-2">
+                          <p className="font-semibold text-white">
+                            ✅ Méthode alternative (marche à 100%)
+                          </p>
+                          <ol className="list-decimal list-inside space-y-1">
+                            <li>Entrez votre numéro WhatsApp ci-dessous</li>
+                            <li>Cliquez sur "Générer le code"</li>
+                            <li>Ouvrez WhatsApp → Appareils connectés → Associer un appareil</li>
+                            <li>Entrez le code à 8 chiffres affiché</li>
+                          </ol>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* QR Code ou Pairing Code */}
+                  {!whatsappConnected ? (
+                    <>
+                      {/* MÉTHODE QR CODE */}
+                      {connectionMethod === 'qr' && (
+                        !qrCode ? (
+                          <>
+                            <button
+                              onClick={handleWhatsAppConnect}
+                              disabled={loading}
+                              className="w-full py-4 bg-gradient-to-r from-green-600 to-green-500 rounded-xl text-white font-semibold text-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                            >
+                              {loading ? (
+                                <>
+                                  <Loader className="w-5 h-5 animate-spin" />
+                                  Génération du QR code...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                  </svg>
+                                  Générer le QR Code WhatsApp
+                                </>
+                              )}
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="glass p-6 rounded-2xl">
+                              <img
+                                src={qrCode}
+                                alt="QR Code WhatsApp"
+                                className="w-64 h-64 rounded-xl"
+                              />
+                            </div>
+                            {checkingStatus && (
+                              <div className="flex items-center gap-2 text-accent">
+                                <Loader className="w-5 h-5 animate-spin" />
+                                <span className="text-sm">En attente de scan...</span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
+
+                      {/* MÉTHODE CODE DE COUPLAGE */}
+                      {connectionMethod === 'pairing' && (
+                        !pairingCode ? (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-white font-semibold mb-2">
+                                Numéro WhatsApp (avec indicatif pays)
+                              </label>
+                              <input
+                                type="tel"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                placeholder="+33612345678"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
+                              />
+                              <p className="text-gray-400 text-xs mt-2">
+                                Exemple: +33 pour France, +1 pour USA, +212 pour Maroc
+                              </p>
+                            </div>
+
+                            <button
+                              onClick={handlePairingCode}
+                              disabled={loading || !phoneNumber}
+                              className="w-full py-4 bg-gradient-to-r from-green-600 to-green-500 rounded-xl text-white font-semibold text-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                            >
+                              {loading ? (
+                                <>
+                                  <Loader className="w-5 h-5 animate-spin" />
+                                  Génération du code...
+                                </>
+                              ) : (
+                                <>
+                                  🔢 Générer le code de couplage
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="glass p-8 rounded-2xl border-2 border-green-500/50">
+                              <p className="text-gray-400 text-sm mb-4 text-center">
+                                Votre code de couplage :
+                              </p>
+                              <div className="text-6xl font-bold text-center text-white tracking-widest">
+                                {pairingCode}
+                              </div>
+                              <p className="text-gray-400 text-xs mt-4 text-center">
+                                Entrez ce code dans WhatsApp
+                              </p>
+                            </div>
+                            {checkingStatus && (
+                              <div className="flex items-center gap-2 text-accent">
+                                <Loader className="w-5 h-5 animate-spin" />
+                                <span className="text-sm">En attente de validation...</span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
+
+                      {/* Message d'erreur WAHA */}
+                      {wahaError && (
+                        <div className="glass p-4 rounded-xl bg-orange-500/10 border border-orange-500/50">
+                          <p className="text-orange-300 text-sm">{wahaError}</p>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="glass p-6 rounded-xl border border-green-500/50 bg-green-500/10">
                       <div className="flex items-center gap-3">
