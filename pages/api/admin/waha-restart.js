@@ -47,16 +47,7 @@ export default async function handler(req, res) {
                 enabled: true,
                 fullSync: false
               }
-            },
-            webhooks: [
-              {
-                url: 'https://replyfast-bot.onrender.com/api/waha/webhook',
-                events: ['message', 'session.status'],
-                hmac: null,
-                retries: null,
-                customHeaders: null
-              }
-            ]
+            }
           }
         })
       });
