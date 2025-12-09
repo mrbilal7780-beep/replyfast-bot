@@ -5,20 +5,21 @@ import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import dynamic from 'next/dynamic';
 
-// Import dynamique du background (client-side only)
-const ParticlesBackground = dynamic(() => import('../components/ParticlesBackground'), {
+// Import dynamique du background 3D futuriste (client-side only)
+const FuturisticBackground = dynamic(() => import('../components/FuturisticBackground'), {
   ssr: false,
+  loading: () => <div className="fixed inset-0 bg-black" />
 });
 
 export default function Home() {
   const router = useRouter();
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     checkUser();
 
-    // Détecter si mobile
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -26,7 +27,13 @@ export default function Home() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
-    return () => window.removeEventListener('resize', checkMobile);
+    // Fade in effect
+    const timer = setTimeout(() => setIsLoading(false), 500);
+
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      clearTimeout(timer);
+    };
   }, []);
 
   const checkUser = async () => {
@@ -63,189 +70,123 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen overflow-hidden relative" style={{ backgroundColor: '#000000' }}>
-      {/* Fond avec vagues animées futuristes */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
+    <div className="min-h-screen overflow-hidden relative bg-black">
+      {/* Fond 3D Futuriste */}
+      <FuturisticBackground />
 
-        {/* Vagues animées */}
-        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="wave-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(99, 102, 241, 0.1)" />
-              <stop offset="50%" stopColor="rgba(139, 92, 246, 0.15)" />
-              <stop offset="100%" stopColor="rgba(99, 102, 241, 0.1)" />
-            </linearGradient>
-          </defs>
-
-          <motion.path
-            d="M0,100 Q250,50 500,100 T1000,100 T1500,100 T2000,100 V400 H0 Z"
-            fill="url(#wave-gradient)"
-            animate={{
-              d: [
-                "M0,100 Q250,50 500,100 T1000,100 T1500,100 T2000,100 V400 H0 Z",
-                "M0,120 Q250,70 500,120 T1000,120 T1500,120 T2000,120 V400 H0 Z",
-                "M0,100 Q250,50 500,100 T1000,100 T1500,100 T2000,100 V400 H0 Z"
-              ]
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-
-          <motion.path
-            d="M0,200 Q300,150 600,200 T1200,200 T1800,200 T2400,200 V600 H0 Z"
-            fill="rgba(139, 92, 246, 0.05)"
-            animate={{
-              d: [
-                "M0,200 Q300,150 600,200 T1200,200 T1800,200 T2400,200 V600 H0 Z",
-                "M0,180 Q300,130 600,180 T1200,180 T1800,180 T2400,180 V600 H0 Z",
-                "M0,200 Q300,150 600,200 T1200,200 T1800,200 T2400,200 V600 H0 Z"
-              ]
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1
-            }}
-          />
-        </svg>
-
-        {/* Grille subtile */}
-        <div className="absolute inset-0 opacity-30" style={{
-          backgroundImage: 'linear-gradient(rgba(99, 102, 241, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.02) 1px, transparent 1px)',
-          backgroundSize: '60px 60px'
-        }}></div>
-      </div>
+      {/* Overlay gradient pour lisibilité */}
+      <div className="fixed inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent pointer-events-none z-[1]" />
+      <div className="fixed inset-0 bg-gradient-to-t from-black via-transparent to-black/50 pointer-events-none z-[1]" />
 
       {/* Logo fixe en haut à gauche */}
       <motion.div
         initial={{ opacity: 0, x: -40 }}
         animate={{ opacity: 1, x: 0 }}
-        className="fixed top-6 left-6 z-50"
+        transition={{ delay: 0.3 }}
+        className="fixed top-6 left-6 md:top-8 md:left-8 z-50"
       >
         <motion.div
-          whileHover={{ scale: 1.08 }}
+          whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 400 }}
-          className="text-3xl md:text-4xl font-black tracking-tight cursor-pointer"
-          style={{ fontFamily: "'Orbitron', 'Rajdhani', sans-serif" }}
+          className="text-2xl md:text-3xl font-black tracking-tight cursor-pointer"
           onClick={() => router.push('/')}
         >
-          <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent drop-shadow-2xl">
-            REPLYFAST
-          </span>
-          <span className="text-white ml-2">AI</span>
+          <span className="text-white font-light">REPLY</span>
+          <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent font-black">FAST</span>
+          <span className="text-white/60 ml-1 text-lg">AI</span>
         </motion.div>
       </motion.div>
 
-      {/* Navbar - Juste les boutons à droite */}
+      {/* Navbar */}
       <nav className="relative z-10 flex justify-end items-center p-6 md:p-8 max-w-7xl mx-auto">
-
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-3 md:gap-4">
           <motion.button
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
             onClick={() => setShowAboutModal(true)}
-            className="text-white hover:text-accent transition-colors text-sm md:text-base"
+            className="text-white/70 hover:text-white transition-colors text-sm md:text-base px-4 py-2"
           >
-            À propos
+            A propos
           </motion.button>
 
           <motion.button
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
             onClick={() => router.push('/login')}
-            className="glass px-4 md:px-6 py-2 rounded-full text-white hover:scale-105 transition-transform text-sm md:text-base"
+            className="border border-white/20 hover:border-primary/50 px-5 py-2 rounded-full text-white hover:text-primary transition-all text-sm md:text-base backdrop-blur-sm"
           >
-            Se connecter
+            Connexion
           </motion.button>
         </div>
       </nav>
 
-      {/* Hero Section - Optimized padding for mobile */}
-      <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
-          {/* Badge IA seul */}
+      {/* Hero Section */}
+      <div className="relative z-10 container mx-auto px-6 md:px-8 py-16 md:py-24">
+        <div className="max-w-2xl">
+          {/* Small text above */}
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex items-center mb-8"
-          >
-            <div className="glass px-8 py-3 rounded-full border border-primary/20 backdrop-blur-xl">
-              <span className="text-base font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Intelligence Artificielle Avancée
-              </span>
-            </div>
-          </motion.div>
-
-          {/* Title */}
-          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-5xl md:text-7xl font-bold mb-6"
+            transition={{ delay: 0.6 }}
+            className="mb-4"
           >
-            <span className="text-white">Votre commerce</span>
-            <br />
-            <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-              ouvert 24/7
+            <span className="text-primary/80 text-sm md:text-base tracking-[0.3em] uppercase font-light">
+              Here and Now
+            </span>
+          </motion.div>
+
+          {/* Main title - FUTURE style */}
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="text-6xl md:text-8xl lg:text-9xl font-black mb-6 tracking-tight"
+          >
+            <span className="bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
+              F
+            </span>
+            <span className="text-white">UTUR</span>
+            <span className="bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">
+              E
             </span>
           </motion.h1>
 
-          <motion.h2
+          {/* Subtitle */}
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-3xl md:text-4xl text-white/90 mb-8"
+            transition={{ delay: 0.8 }}
+            className="text-xl md:text-2xl text-white/80 mb-4 font-light leading-relaxed"
           >
-            Pendant que vous dormez, notre IA travaille
-          </motion.h2>
+            Votre commerce{' '}
+            <span className="text-primary font-medium">ouvert 24/7</span>
+          </motion.p>
 
-          {/* Description */}
-          <motion.div
+          <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-lg md:text-xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed"
+            transition={{ delay: 0.9 }}
+            className="text-gray-400 text-base md:text-lg mb-10 max-w-lg leading-relaxed"
           >
-            <p className="mb-4">
-              ReplyFast AI est la solution nouvelle génération qui révolutionne la gestion client.
-              Conçue avec les dernières technologies d'intelligence artificielle, notre plateforme
-              offre des performances maximales à un prix minimal.
-            </p>
-            <p className="mb-4">
-              Pas de choix compliqués, pas de tiers multiples : ici, tous les utilisateurs
-              bénéficient du meilleur, au même prix.
-            </p>
-            <p className="text-accent/80 italic">
-              Comme le disait Alan Turing : "Nous ne pouvons voir que peu devant nous,
-              mais nous voyons tant à faire." C'est exactement notre vision.
-            </p>
-          </motion.div>
+            L'intelligence artificielle qui repond a vos clients pendant que vous dormez.
+            Simple, efficace, abordable.
+          </motion.p>
 
           {/* CTA Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+            transition={{ delay: 1 }}
+            className="flex flex-col sm:flex-row gap-4"
           >
             <motion.button
               onClick={() => router.push('/signup')}
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.03, boxShadow: "0 0 40px rgba(99, 102, 241, 0.4)" }}
               whileTap={{ scale: 0.98 }}
-              className="group relative px-12 py-5 bg-gradient-to-r from-primary via-secondary to-accent rounded-2xl text-white font-bold text-xl shadow-2xl border border-white/20 overflow-hidden"
+              className="group relative px-8 py-4 bg-gradient-to-r from-primary to-secondary rounded-xl text-white font-semibold text-lg overflow-hidden"
             >
-              {/* Animation brillance au hover */}
               <motion.div
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                 style={{ transform: "skewX(-20deg)" }}
@@ -253,239 +194,264 @@ export default function Home() {
                 whileHover={{ x: "200%" }}
                 transition={{ duration: 0.6 }}
               />
-              <span className="relative flex items-center gap-3">
-                <span>Commencer l'essai gratuit</span>
-                <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+              <span className="relative flex items-center justify-center gap-2">
+                Commencer gratuitement
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
             </motion.button>
 
             <button
-              onClick={() => scrollToSection('details')}
-              className="glass px-8 py-4 rounded-full text-white font-semibold text-lg hover:scale-105 transition-transform"
+              onClick={() => scrollToSection('features')}
+              className="px-8 py-4 border border-white/20 rounded-xl text-white font-medium text-lg hover:bg-white/5 transition-all"
             >
-              En savoir plus
+              Decouvrir
             </button>
           </motion.div>
 
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.7 }}
-            className="text-gray-500 mt-4 text-sm"
+            transition={{ delay: 1.1 }}
+            className="text-gray-500 mt-6 text-sm"
           >
-            1 mois d'essai gratuit • Annulation en un clic
+            1 mois gratuit &bull; Sans engagement &bull; Configuration en 5 min
           </motion.p>
-        </motion.div>
+        </div>
+      </div>
 
-        {/* Features Grid */}
-        <motion.div
-          id="details"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="grid md:grid-cols-3 gap-6 mt-32"
-        >
-          {[
-            {
-              icon: <Zap className="w-8 h-8" />,
-              title: "Réponses instantanées",
-              description: "Bot répond 24/7, même à 3h du matin. Vos clients ne restent jamais sans réponse."
-            },
-            {
-              icon: <Shield className="w-8 h-8" />,
-              title: "100% Sécurisé",
-              description: "Vos données protégées par cryptage de niveau bancaire. Conforme RGPD."
-            },
-            {
-              icon: <Sparkles className="w-8 h-8" />,
-              title: "IA Intelligente",
-              description: "Intelligence artificielle avancée qui comprend le contexte et s'adapte à votre business."
-            }
-          ].map((feature, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.9 + i * 0.1 }}
-              className="glass p-8 rounded-3xl hover:scale-105 transition-transform group"
-            >
-              <div className="text-accent mb-4 group-hover:scale-110 transition-transform">
-                {feature.icon}
-              </div>
-              <h3 className="text-xl font-bold mb-2 text-white">
-                {feature.title}
-              </h3>
-              <p className="text-gray-400">
-                {feature.description}
-              </p>
-            </motion.div>
-          ))}
-        </motion.div>
+      {/* Bottom tags - like in the image */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.2 }}
+        className="fixed bottom-8 left-6 md:left-8 z-10 flex gap-8"
+      >
+        <div>
+          <p className="text-white/40 text-xs tracking-widest uppercase mb-1">Technology</p>
+          <p className="text-white/70 text-sm">GPT-4 Powered</p>
+        </div>
+        <div>
+          <p className="text-white/40 text-xs tracking-widest uppercase mb-1">Innovation</p>
+          <p className="text-white/70 text-sm">WhatsApp AI</p>
+        </div>
+      </motion.div>
 
-        {/* Pricing Section */}
+      {/* Scroll indicator */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.5 }}
+        className="fixed bottom-8 right-8 z-10"
+      >
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 1.2 }}
-          className="glass max-w-4xl mx-auto mt-32 p-12 rounded-3xl"
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          onClick={() => scrollToSection('features')}
+          className="cursor-pointer"
         >
-          <div className="text-center mb-8">
-            <h2 className="text-4xl font-bold text-white mb-4">
+          <ChevronDown className="w-6 h-6 text-white/40 hover:text-white transition-colors" />
+        </motion.div>
+      </motion.div>
+
+      {/* Features Section */}
+      <section id="features" className="relative z-10 py-32 px-6 md:px-8">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Pourquoi <span className="text-primary">ReplyFast</span> ?
+            </h2>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+              La technologie au service de votre business
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                icon: <Zap className="w-8 h-8" />,
+                title: "Reponses instantanees",
+                description: "Votre IA repond 24h/24, meme a 3h du matin. Vos clients ne restent jamais sans reponse."
+              },
+              {
+                icon: <Shield className="w-8 h-8" />,
+                title: "100% Securise",
+                description: "Cryptage de niveau bancaire. Donnees protegees et conformes RGPD."
+              },
+              {
+                icon: <Sparkles className="w-8 h-8" />,
+                title: "IA Intelligente",
+                description: "Comprend le contexte, s'adapte a votre secteur d'activite et apprend de chaque conversation."
+              }
+            ].map((feature, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="group p-8 rounded-2xl bg-white/5 border border-white/10 hover:border-primary/30 transition-all hover:bg-white/[0.07]"
+              >
+                <div className="text-primary mb-4 group-hover:scale-110 transition-transform">
+                  {feature.icon}
+                </div>
+                <h3 className="text-xl font-bold mb-3 text-white">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-400 leading-relaxed">
+                  {feature.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="relative z-10 py-32 px-6 md:px-8">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="max-w-4xl mx-auto p-10 md:p-14 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 backdrop-blur-xl"
+        >
+          <div className="text-center mb-10">
+            <div className="inline-block px-4 py-1.5 bg-primary/20 rounded-full mb-6">
+              <span className="text-primary text-sm font-medium">Offre de lancement</span>
+            </div>
+
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-3">
               Un seul prix, tout inclus
             </h2>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Chez ReplyFast AI, nous croyons en la simplicité. Pas de tiers cachés,
-              pas d'options payantes. Vous payez uniquement pour encourager l'innovation
-              et maintenir le service. La puissance de l'IA est la même pour tous.
+            <p className="text-gray-400 text-lg max-w-xl mx-auto">
+              Pas de surprises, pas de frais caches. Tout est inclus.
             </p>
           </div>
 
-          <div className="text-center mb-8">
-            <div className="inline-block px-6 py-2 bg-accent/20 rounded-full mb-6">
-              <span className="text-accent font-semibold">Offre de lancement</span>
-            </div>
-
-            <div className="text-7xl font-bold mb-2">
+          <div className="text-center mb-10">
+            <div className="text-7xl md:text-8xl font-black mb-2">
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                19,99€
+                19,99
               </span>
+              <span className="text-white/60 text-3xl font-normal">/mois</span>
             </div>
-            <div className="text-gray-400 text-xl mb-2">par mois</div>
-            <div className="text-gray-500">0,66€/jour seulement</div>
+            <p className="text-gray-500">soit 0,66/jour</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-x-8 gap-y-3 mb-10">
+          <div className="grid md:grid-cols-2 gap-x-10 gap-y-4 mb-10">
             {[
-              "Réponses IA illimitées avec intelligence artificielle avancée",
-              "Gestion automatique des rendez-vous avec calendrier intelligent",
-              "Menu Manager avec apprentissage en temps réel",
-              "Multi-secteurs (20+ activités supportées)",
-              "Analytics avancées avec projections IA",
-              "Assistant IA personnel pour conseils business",
-              "Intégration WhatsApp Business officielle (Meta API)",
-              "Base de données clients intelligente",
-              "Notifications en temps réel",
+              "Reponses IA illimitees",
+              "Gestion automatique des RDV",
+              "Menu Manager intelligent",
+              "20+ secteurs supportes",
+              "Analytics avances",
+              "Assistant IA personnel",
+              "Integration WhatsApp Business",
               "Support prioritaire 24/7",
-              "Mises à jour automatiques",
-              "Sécurité cryptée de niveau bancaire",
-              "Backup quotidien de vos données",
-              "99.9% de disponibilité garantie"
+              "Mises a jour automatiques",
+              "Securite niveau bancaire"
             ].map((item, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <Check className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                className="flex items-center gap-3"
+              >
+                <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-3 h-3 text-primary" />
+                </div>
                 <span className="text-gray-300">{item}</span>
-              </div>
+              </motion.div>
             ))}
           </div>
 
-          <button
+          <motion.button
             onClick={() => router.push('/signup')}
-            className="w-full py-4 bg-gradient-to-r from-primary to-secondary rounded-full text-white font-semibold text-lg hover:scale-105 transition-transform shadow-lg"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full py-4 bg-gradient-to-r from-primary to-secondary rounded-xl text-white font-semibold text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-shadow"
           >
-            Commencer maintenant
-          </button>
+            Commencer l'essai gratuit
+          </motion.button>
 
           <p className="text-center text-gray-500 text-sm mt-6">
-            1 mois d'essai gratuit • Carte bancaire requise • Annulation en un clic
+            1 mois d'essai gratuit &bull; Annulation en 1 clic
           </p>
         </motion.div>
-
-        {/* Scroll indicator */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5 }}
-          className="flex justify-center mt-20"
-        >
-          <ChevronDown className="w-8 h-8 text-accent/50 animate-bounce" />
-        </motion.div>
-      </div>
+      </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-white/10 mt-32">
-        <div className="max-w-7xl mx-auto px-6 py-12">
+      <footer className="relative z-10 border-t border-white/10 mt-20">
+        <div className="max-w-6xl mx-auto px-6 py-12">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <h3 className="text-lg font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-4">
+              <h3 className="text-lg font-bold text-white mb-4">
                 ReplyFast AI
               </h3>
-              <p className="text-gray-400 text-sm">
-                Innovation et excellence
+              <p className="text-gray-500 text-sm">
+                L'IA au service de votre business
               </p>
             </div>
 
             <div>
-              <h4 className="text-white font-semibold mb-4">Légal</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
+              <h4 className="text-white font-medium mb-4">Legal</h4>
+              <ul className="space-y-2 text-gray-500 text-sm">
                 <li>
-                  <button onClick={() => router.push('/cgv')} className="hover:text-accent transition-colors">
+                  <button onClick={() => router.push('/cgv')} className="hover:text-white transition-colors">
                     CGV
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => router.push('/privacy')} className="hover:text-accent transition-colors">
-                    Politique de confidentialité
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => router.push('/partners')} className="hover:text-accent transition-colors">
-                    Technologies partenaires
+                  <button onClick={() => router.push('/privacy')} className="hover:text-white transition-colors">
+                    Confidentialite
                   </button>
                 </li>
               </ul>
             </div>
 
             <div>
-              <h4 className="text-white font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
+              <h4 className="text-white font-medium mb-4">Support</h4>
+              <ul className="space-y-2 text-gray-500 text-sm">
                 <li>
-                  <a href="mailto:support@replyfast.ai" className="hover:text-accent transition-colors">
+                  <a href="mailto:support@replyfast.ai" className="hover:text-white transition-colors">
                     support@replyfast.ai
                   </a>
                 </li>
-                <li>
-                  <button className="hover:text-accent transition-colors">
-                    Documentation
-                  </button>
-                </li>
               </ul>
             </div>
 
             <div>
-              <h4 className="text-white font-semibold mb-4">Entreprise</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
+              <h4 className="text-white font-medium mb-4">Entreprise</h4>
+              <ul className="space-y-2 text-gray-500 text-sm">
                 <li>
-                  <button
-                    onClick={() => setShowAboutModal(true)}
-                    className="hover:text-accent transition-colors"
-                  >
-                    À propos
-                  </button>
-                </li>
-                <li>
-                  <button className="hover:text-accent transition-colors">
-                    Contact
+                  <button onClick={() => setShowAboutModal(true)} className="hover:text-white transition-colors">
+                    A propos
                   </button>
                 </li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-8 text-center text-gray-500 text-sm">
-            <p>Copyright © 2025 ReplyFast AI</p>
-            <p className="mt-2">Tous droits réservés</p>
+          <div className="border-t border-white/10 pt-8 text-center text-gray-600 text-sm">
+            <p>Copyright 2025 ReplyFast AI - Tous droits reserves</p>
           </div>
         </div>
       </footer>
 
-      {/* Modal À propos - Responsive */}
+      {/* Modal A propos */}
       <AnimatePresence>
         {showAboutModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
             onClick={() => setShowAboutModal(false)}
           >
             <motion.div
@@ -493,68 +459,54 @@ export default function Home() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="glass max-w-2xl w-full p-4 sm:p-6 md:p-8 rounded-3xl relative max-h-[90vh] overflow-y-auto"
+              className="max-w-xl w-full p-8 rounded-2xl bg-gray-900/90 border border-white/10 backdrop-blur-xl relative max-h-[85vh] overflow-y-auto"
             >
               <button
                 onClick={() => setShowAboutModal(false)}
-                className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-gray-400 hover:text-white transition-colors z-10"
+                className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
               >
-                <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                <X className="w-5 h-5" />
               </button>
 
-              <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent pr-10">
-                À propos de ReplyFast AI
+              <h2 className="text-2xl font-bold mb-6 text-white">
+                A propos de ReplyFast AI
               </h2>
 
-              <div className="space-y-4 sm:space-y-6 text-gray-300 text-sm sm:text-base">
-                {/* Photo du fondateur - Responsive */}
-                <div className="flex items-center gap-4 sm:gap-6">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-2xl sm:text-3xl md:text-4xl font-bold text-white flex-shrink-0">
+              <div className="space-y-6 text-gray-300">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
                     RF
                   </div>
                   <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Fondateur</h3>
-                    <p className="text-accent text-sm sm:text-base">Entrepreneur passionné</p>
+                    <h3 className="text-lg font-bold text-white">Fondateur</h3>
+                    <p className="text-primary">Entrepreneur passionne</p>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">Notre Mission</h3>
-                  <p className="leading-relaxed">
-                    ReplyFast AI est née de la volonté de démocratiser l'intelligence artificielle
-                    pour les petites et moyennes entreprises. Nous croyons que chaque commerce
-                    mérite d'avoir accès aux meilleures technologies, sans complexité ni coûts prohibitifs.
+                  <h3 className="text-lg font-bold text-white mb-2">Notre Mission</h3>
+                  <p className="leading-relaxed text-gray-400">
+                    Democratiser l'intelligence artificielle pour les PME.
+                    Chaque commerce merite les meilleures technologies, sans complexite ni couts prohibitifs.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">Nos Valeurs</h3>
-                  <ul className="space-y-2">
+                  <h3 className="text-lg font-bold text-white mb-2">Nos Valeurs</h3>
+                  <ul className="space-y-2 text-gray-400">
                     <li className="flex items-start gap-2">
-                      <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-accent flex-shrink-0 mt-0.5" />
-                      <span className="leading-relaxed"><strong>Innovation :</strong> Technologies de pointe accessibles à tous</span>
+                      <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-1" />
+                      <span><strong className="text-white">Innovation</strong> - Technologies de pointe accessibles</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Check className="w-4 h-4 sm:w-5 sm:h-5 text-accent flex-shrink-0 mt-0.5" />
-                      <span className="leading-relaxed"><strong>Simplicité :</strong> Interface intuitive, configuration en minutes</span>
+                      <Check className="w-4 h-4 text-primary flex-shrink-0 mt-1" />
+                      <span><strong className="text-white">Simplicite</strong> - Configuration en 5 minutes</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-accent flex-shrink-0 mt-0.5" />
-                      <span className="leading-relaxed"><strong>Performance :</strong> Résultats mesurables et ROI rapide</span>
+                      <Zap className="w-4 h-4 text-primary flex-shrink-0 mt-1" />
+                      <span><strong className="text-white">Performance</strong> - Resultats mesurables</span>
                     </li>
                   </ul>
-                </div>
-
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-white mb-2 sm:mb-3">Contact</h3>
-                  <p className="leading-relaxed">
-                    Email : <a href="mailto:support@replyfast.ai" className="text-accent hover:underline break-all">
-                      support@replyfast.ai
-                    </a>
-                  </p>
-                  <p className="mt-2 leading-relaxed">
-                    Nous sommes une équipe passionnée dédiée à votre succès.
-                  </p>
                 </div>
               </div>
             </motion.div>
