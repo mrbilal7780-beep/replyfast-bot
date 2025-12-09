@@ -12,12 +12,17 @@ export default async function handler(req, res) {
 
     const wahaUrl = process.env.WAHA_URL || 'http://localhost:3000';
 
-    const response = await fetch(`${wahaUrl}/api/${sessionName}`, {
+    // ⚡ Timeout 20s pour Render (latence réseau élevée entre services)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+    const response = await fetch(`${wahaUrl}/api/sessions/${sessionName}`, {
       method: 'GET',
       headers: {
         'X-Api-Key': process.env.WAHA_API_KEY || ''
-      }
-    });
+      },
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeoutId));
 
     const data = await response.json();
 
@@ -32,7 +37,20 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Erreur check-status:', error);
+    // ⚠️ Ne pas logger les AbortError (spam inutile des logs)
+    if (error.name !== 'AbortError') {
+      console.error('Erreur check-status:', error);
+    }
+
+    // Si timeout, retourner un status par défaut au lieu de crasher
+    if (error.name === 'AbortError') {
+      return res.status(200).json({
+        success: true,
+        status: 'CHECKING', // Status temporaire pendant vérification
+        me: null
+      });
+    }
+
     return res.status(500).json({
       error: error.message
     });
