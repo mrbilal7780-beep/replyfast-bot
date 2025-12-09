@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Check, Loader, Sparkles, AlertCircle } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Loader2, Sparkles, AlertCircle, MessageSquare, Building2, Clock, Smartphone } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { getSectorsList } from '../lib/sectors';
 import { supabase } from '../lib/supabase';
+import dynamic from 'next/dynamic';
+
+const FuturisticBackground = dynamic(() => import('../components/FuturisticBackground'), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 bg-black" />
+});
 
 export default function Onboarding() {
   const router = useRouter();
@@ -11,20 +17,16 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const [showSkipWarning, setShowSkipWarning] = useState(false);
 
-  // Données du formulaire
+  // Donnees du formulaire
   const [formData, setFormData] = useState({
-    // Étape 1: Secteur
     sector: '',
-
-    // Étape 2: Infos entreprise
     nom_entreprise: '',
     telephone: '',
     adresse: '',
     email_contact: '',
     description: '',
-
-    // Étape 3: Horaires
     horaires: {
       lundi: { ouvert: true, horaires: '09:00-18:00' },
       mardi: { ouvert: true, horaires: '09:00-18:00' },
@@ -32,10 +34,8 @@ export default function Onboarding() {
       jeudi: { ouvert: true, horaires: '09:00-18:00' },
       vendredi: { ouvert: true, horaires: '09:00-18:00' },
       samedi: { ouvert: true, horaires: '10:00-17:00' },
-      dimanche: { ouvert: false, horaires: 'Fermé' }
+      dimanche: { ouvert: false, horaires: 'Ferme' }
     },
-
-    // WhatsApp (sera rempli automatiquement par Embedded Signup)
     whatsapp_phone_number_id: '',
     waba_id: ''
   });
@@ -52,23 +52,18 @@ export default function Onboarding() {
       } else {
         setUser(session.user);
 
-        // Vérifier si déjà configuré
-        const { data: client, error } = await supabase
+        const { data: client } = await supabase
           .from('clients')
           .select('profile_completed')
           .eq('email', session.user.email)
           .maybeSingle();
-
-        if (error) {
-          console.error('Erreur checkUser onboarding:', error);
-        }
 
         if (client?.profile_completed) {
           router.push('/dashboard');
         }
       }
     } catch (error) {
-      console.error('Erreur dans checkUser:', error);
+      console.error('Erreur checkUser:', error);
     }
   };
 
@@ -83,7 +78,7 @@ export default function Onboarding() {
   // Meta Embedded Signup
   const handleWhatsAppConnect = () => {
     if (typeof window === 'undefined' || !window.FB) {
-      alert('SDK Facebook non chargé. Veuillez actualiser la page et réessayer.');
+      alert('SDK Facebook non charge. Actualisez la page et reessayez.');
       return;
     }
 
@@ -94,7 +89,6 @@ export default function Onboarding() {
         const phoneNumberId = response.authResponse.phone_number_id;
         const wabaId = response.authResponse.waba_id;
 
-        // Mettre à jour le state
         setFormData({
           ...formData,
           whatsapp_phone_number_id: phoneNumberId,
@@ -103,82 +97,74 @@ export default function Onboarding() {
 
         setWhatsappConnected(true);
         setLoading(false);
-
-        // Message de succès
-        alert('WhatsApp Business connecté avec succès.');
       } else {
         setLoading(false);
-        alert('Connexion annulée ou échouée. Réessayez.');
+        alert('Connexion annulee. Reessayez.');
       }
     }, {
       scope: 'whatsapp_business_management,whatsapp_business_messaging',
       extras: {
-        setup: {
-          // Configuration du flow
-        }
+        setup: {}
       }
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (skipWhatsApp = false) => {
+    // Validation: WhatsApp obligatoire sauf si skip explicite
+    if (!whatsappConnected && !skipWhatsApp) {
+      setShowSkipWarning(true);
+      return;
+    }
+
     setLoading(true);
     try {
-      // Validation: vérifier que le secteur est bien défini
       if (!formData.sector) {
-        throw new Error('Veuillez sélectionner un secteur d\'activité');
+        throw new Error('Veuillez selectionner un secteur d\'activite');
       }
 
-      console.log('💾 Sauvegarde onboarding...', {
-        email: user.email,
-        sector: formData.sector,
-        company: formData.nom_entreprise
-      });
+      // Sanitize inputs
+      const sanitizedData = {
+        sector: formData.sector.trim(),
+        nom_entreprise: formData.nom_entreprise.trim().replace(/[<>]/g, ''),
+        telephone: formData.telephone.trim(),
+        adresse: formData.adresse.trim().replace(/[<>]/g, ''),
+        email_contact: formData.email_contact.trim().toLowerCase(),
+        description: formData.description.trim().replace(/[<>]/g, '')
+      };
 
       // 1. Sauvegarder dans clients
-      const { data: clientData, error: clientError } = await supabase
+      const { error: clientError } = await supabase
         .from('clients')
         .update({
-          sector: formData.sector,
+          sector: sanitizedData.sector,
           whatsapp_phone_number_id: formData.whatsapp_phone_number_id || null,
           waba_id: formData.waba_id || null,
           whatsapp_connected: whatsappConnected,
-          company_name: formData.nom_entreprise,
+          company_name: sanitizedData.nom_entreprise,
           profile_completed: true
         })
-        .eq('email', user.email)
-        .select();
+        .eq('email', user.email);
 
-      if (clientError) {
-        console.error('❌ Erreur clients update:', clientError);
-        throw clientError;
-      }
-
-      console.log('✅ Client mis à jour:', clientData);
+      if (clientError) throw clientError;
 
       // 2. Sauvegarder business_info
-      const { data: businessData, error: businessError } = await supabase
+      const { error: businessError } = await supabase
         .from('business_info')
         .upsert({
           client_email: user.email,
-          nom_entreprise: formData.nom_entreprise,
-          telephone: formData.telephone,
-          adresse: formData.adresse,
-          email_contact: formData.email_contact,
-          description: formData.description,
+          nom_entreprise: sanitizedData.nom_entreprise,
+          telephone: sanitizedData.telephone,
+          adresse: sanitizedData.adresse,
+          email_contact: sanitizedData.email_contact,
+          description: sanitizedData.description,
           horaires: formData.horaires,
-          tarifs: {} // Vide, sera rempli dans Menu Manager
-        })
-        .select();
+          tarifs: {}
+        });
 
-      if (businessError) {
-        console.error('❌ Erreur business_info upsert:', businessError);
-        throw businessError;
-      }
+      if (businessError) throw businessError;
 
-      console.log('✅ Business info créé:', businessData);
-
-      // 3. Créer préférences utilisateur
-      const { data: prefsData, error: prefsError} = await supabase
+      // 3. Creer preferences utilisateur
+      await supabase
         .from('user_preferences')
         .upsert({
           user_email: user.email,
@@ -188,74 +174,124 @@ export default function Onboarding() {
           notifications_rdv: true,
           notifications_nouveaux_clients: true
         }, {
-          onConflict: 'user_email'  // 🔧 FIX: Spécifier la clé unique pour éviter les duplicates
-        })
-        .select();
-
-      if (prefsError) {
-        console.error('❌ Erreur user_preferences upsert:', prefsError);
-        throw prefsError;
-      }
-
-      console.log('✅ Préférences créées:', prefsData);
-      console.log('✅ Onboarding complété avec succès !');
+          onConflict: 'user_email'
+        });
 
       router.push('/dashboard');
     } catch (error) {
-      console.error('❌ Erreur onboarding:', error);
-      alert('Erreur lors de la configuration: ' + error.message);
+      console.error('Erreur onboarding:', error);
+      alert('Erreur: ' + error.message);
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-dark flex items-center justify-center p-4">
-      <div className="fixed inset-0 gradient-bg opacity-10"></div>
+  const stepIcons = [
+    <Sparkles key="1" className="w-5 h-5" />,
+    <Building2 key="2" className="w-5 h-5" />,
+    <Clock key="3" className="w-5 h-5" />,
+    <Smartphone key="4" className="w-5 h-5" />
+  ];
 
-      {/* Bouton "Se connecter" en haut à droite */}
-      <div className="absolute top-6 right-6 z-20">
-        <button
-          onClick={() => router.push('/login')}
-          className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition-all border border-white/20"
-        >
-          Se connecter
-        </button>
-      </div>
+  const stepTitles = ['Secteur', 'Entreprise', 'Horaires', 'WhatsApp'];
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
+      <FuturisticBackground />
+      <div className="fixed inset-0 bg-black/70 pointer-events-none z-[1]" />
+
+      {/* Skip Warning Modal */}
+      <AnimatePresence>
+        {showSkipWarning && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90"
+            onClick={() => setShowSkipWarning(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-md w-full p-6 rounded-2xl bg-gray-900 border border-orange-500/30"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-orange-500" />
+                </div>
+                <h3 className="text-xl font-bold text-white">WhatsApp non connecte</h3>
+              </div>
+
+              <p className="text-gray-400 mb-6">
+                Sans WhatsApp, votre assistant IA ne pourra pas recevoir ni envoyer de messages a vos clients.
+                Vous pourrez le configurer plus tard dans les parametres.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSkipWarning(false)}
+                  className="flex-1 py-3 bg-gradient-to-r from-green-600 to-green-500 rounded-xl text-white font-semibold"
+                >
+                  Connecter WhatsApp
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSkipWarning(false);
+                    handleSubmit(true);
+                  }}
+                  className="flex-1 py-3 border border-white/20 rounded-xl text-gray-400 hover:text-white transition-colors"
+                >
+                  Continuer sans
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="relative z-10 w-full max-w-3xl"
+        className="relative z-10 w-full max-w-2xl"
       >
         {/* Progress Bar */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            {[1, 2, 3, 4].map((s) => (
+          <div className="flex items-center justify-between mb-4">
+            {[1, 2, 3, 4].map((s, i) => (
               <div key={s} className="flex items-center">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                  s < step ? 'bg-accent text-dark' :
-                  s === step ? 'bg-primary text-white' :
-                  'bg-white/10 text-gray-500'
-                }`}>
-                  {s < step ? <Check className="w-5 h-5" /> : s}
-                </div>
+                <motion.div
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: s === step ? 1.1 : 1 }}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                    s < step ? 'bg-green-500 text-white' :
+                    s === step ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg shadow-primary/30' :
+                    'bg-white/5 text-gray-500 border border-white/10'
+                  }`}
+                >
+                  {s < step ? <Check className="w-5 h-5" /> : stepIcons[i]}
+                </motion.div>
                 {s < 4 && (
-                  <div className={`w-16 h-1 mx-2 ${
-                    s < step ? 'bg-accent' : 'bg-white/10'
-                  }`}></div>
+                  <div className={`w-12 md:w-20 h-1 mx-2 rounded-full transition-colors ${
+                    s < step ? 'bg-green-500' : 'bg-white/10'
+                  }`} />
                 )}
               </div>
             ))}
           </div>
-          <p className="text-center text-gray-400 text-sm">
-            Étape {step} sur 4
-          </p>
+          <div className="flex justify-between px-2">
+            {stepTitles.map((title, i) => (
+              <span key={i} className={`text-xs ${i + 1 === step ? 'text-primary' : 'text-gray-500'}`}>
+                {title}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Card */}
-        <div className="glass p-8 rounded-3xl">
+        <div className="bg-gray-900/80 backdrop-blur-xl p-8 rounded-2xl border border-white/10">
           <AnimatePresence mode="wait">
-            {/* ÉTAPE 1: SECTEUR */}
+            {/* ETAPE 1: SECTEUR */}
             {step === 1 && (
               <motion.div
                 key="step1"
@@ -263,30 +299,32 @@ export default function Onboarding() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <div className="text-center mb-6">
-                  <Sparkles className="w-12 h-12 text-primary mx-auto mb-4" />
-                  <h2 className="text-3xl font-bold text-white mb-2">
+                <div className="text-center mb-8">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary/20 to-accent/20 flex items-center justify-center mx-auto mb-4">
+                    <Sparkles className="w-8 h-8 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">
                     Bienvenue sur ReplyFast AI
                   </h2>
                   <p className="text-gray-400">
-                    Commençons par configurer votre secteur d'activité
+                    Configurons votre assistant en quelques etapes
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <label className="block text-white font-semibold mb-2">
-                    Quel est votre secteur d'activité?
+                <div>
+                  <label className="block text-white font-medium mb-3">
+                    Quel est votre secteur d'activite?
                   </label>
                   <select
                     value={formData.sector}
                     onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white focus:outline-none focus:border-primary transition-colors appearance-none cursor-pointer"
                   >
-                    <option value="">Sélectionnez...</option>
+                    <option value="" className="bg-gray-900">Selectionnez votre secteur...</option>
                     {getSectorsList()
                       .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
                       .map((sector) => (
-                        <option key={sector.id} value={sector.id} className="bg-dark">
+                        <option key={sector.id} value={sector.id} className="bg-gray-900">
                           {sector.emoji} {sector.name}
                         </option>
                       ))}
@@ -295,7 +333,7 @@ export default function Onboarding() {
               </motion.div>
             )}
 
-            {/* ÉTAPE 2: INFOS ENTREPRISE */}
+            {/* ETAPE 2: INFOS ENTREPRISE */}
             {step === 2 && (
               <motion.div
                 key="step2"
@@ -303,80 +341,76 @@ export default function Onboarding() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <h2 className="text-2xl font-bold text-white mb-6">
-                  Informations de votre entreprise
-                </h2>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-bold text-white">
+                    Informations entreprise
+                  </h2>
+                </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-white font-semibold mb-2">
-                      Nom de l'entreprise *
-                    </label>
+                    <label className="block text-sm text-gray-400 mb-2">Nom de l'entreprise *</label>
                     <input
                       type="text"
                       value={formData.nom_entreprise}
                       onChange={(e) => setFormData({ ...formData, nom_entreprise: e.target.value })}
-                      placeholder="Salon Élégance"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+                      placeholder="Salon Elegance"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-white font-semibold mb-2">
-                      Téléphone
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.telephone}
-                      onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
-                      placeholder="+32 4XX XX XX XX"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Telephone</label>
+                      <input
+                        type="tel"
+                        value={formData.telephone}
+                        onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
+                        placeholder="+33 6 12 34 56 78"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Email contact</label>
+                      <input
+                        type="email"
+                        value={formData.email_contact}
+                        onChange={(e) => setFormData({ ...formData, email_contact: e.target.value })}
+                        placeholder="contact@entreprise.fr"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-white font-semibold mb-2">
-                      Adresse
-                    </label>
+                    <label className="block text-sm text-gray-400 mb-2">Adresse</label>
                     <input
                       type="text"
                       value={formData.adresse}
                       onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
-                      placeholder="123 Rue de la Paix, Bruxelles"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+                      placeholder="123 Rue de la Paix, 75001 Paris"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-white font-semibold mb-2">
-                      Email de contact
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email_contact}
-                      onChange={(e) => setFormData({ ...formData, email_contact: e.target.value })}
-                      placeholder="contact@votresalon.be"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-white font-semibold mb-2">
-                      Description (optionnel)
-                    </label>
+                    <label className="block text-sm text-gray-400 mb-2">Description (optionnel)</label>
                     <textarea
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Décrivez votre entreprise en quelques mots..."
-                      rows={3}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary resize-none"
+                      placeholder="Decrivez votre entreprise..."
+                      rows={2}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary transition-colors resize-none"
                     />
                   </div>
                 </div>
               </motion.div>
             )}
 
-            {/* ÉTAPE 3: HORAIRES */}
+            {/* ETAPE 3: HORAIRES */}
             {step === 3 && (
               <motion.div
                 key="step3"
@@ -384,13 +418,18 @@ export default function Onboarding() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <h2 className="text-2xl font-bold text-white mb-6">
-                  Horaires d'ouverture
-                </h2>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-bold text-white">
+                    Horaires d'ouverture
+                  </h2>
+                </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {Object.keys(formData.horaires).map((jour) => (
-                    <div key={jour} className="flex items-center gap-4 p-4 rounded-xl bg-white/5">
+                    <div key={jour} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/[0.07] transition-colors">
                       <input
                         type="checkbox"
                         checked={formData.horaires[jour].ouvert}
@@ -401,16 +440,14 @@ export default function Onboarding() {
                             [jour]: {
                               ...formData.horaires[jour],
                               ouvert: e.target.checked,
-                              horaires: e.target.checked ? '09:00-18:00' : 'Fermé'
+                              horaires: e.target.checked ? '09:00-18:00' : 'Ferme'
                             }
                           }
                         })}
-                        className="w-5 h-5"
+                        className="w-5 h-5 rounded border-white/20 bg-white/5 text-primary focus:ring-primary"
                       />
-                      <div className="flex-1">
-                        <span className="text-white font-semibold capitalize">{jour}</span>
-                      </div>
-                      {formData.horaires[jour].ouvert && (
+                      <span className="text-white font-medium capitalize w-24">{jour}</span>
+                      {formData.horaires[jour].ouvert ? (
                         <input
                           type="text"
                           value={formData.horaires[jour].horaires}
@@ -424,12 +461,10 @@ export default function Onboarding() {
                               }
                             }
                           })}
-                          placeholder="09:00-18:00"
-                          className="w-40 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
                         />
-                      )}
-                      {!formData.horaires[jour].ouvert && (
-                        <span className="text-gray-500 text-sm">Fermé</span>
+                      ) : (
+                        <span className="text-gray-500 text-sm">Ferme</span>
                       )}
                     </div>
                   ))}
@@ -437,7 +472,7 @@ export default function Onboarding() {
               </motion.div>
             )}
 
-            {/* ÉTAPE 4: WHATSAPP EMBEDDED SIGNUP */}
+            {/* ETAPE 4: WHATSAPP */}
             {step === 4 && (
               <motion.div
                 key="step4"
@@ -445,44 +480,40 @@ export default function Onboarding() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <h2 className="text-2xl font-bold text-white mb-6">
-                  Connecter WhatsApp Business
-                </h2>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">
+                      Connecter WhatsApp Business
+                    </h2>
+                    <p className="text-sm text-orange-400">Obligatoire pour recevoir des messages</p>
+                  </div>
+                </div>
 
                 <div className="space-y-6">
-                  {/* Info box */}
-                  <div className="glass p-6 rounded-xl border border-primary/30">
-                    <div className="flex items-start gap-4">
-                      <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                  <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
+                    <div className="flex gap-3">
+                      <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                       <div className="text-sm text-gray-300 space-y-2">
-                        <p className="font-semibold text-white">
-                          Configuration automatique en 2 minutes
-                        </p>
                         <p>
-                          En cliquant sur le bouton ci-dessous, vous allez être redirigé vers Meta (Facebook)
-                          pour connecter votre WhatsApp Business.
-                        </p>
-                        <p>
-                          <strong>Si vous n'avez pas encore de WhatsApp Business,</strong> Meta le créera
-                          automatiquement pour vous pendant le processus. C'est simple et rapide.
-                        </p>
-                        <p className="text-accent font-semibold">
-                          Vous avez déjà un compte ? Vous pouvez configurer WhatsApp plus tard dans les paramètres.
+                          Cliquez sur le bouton pour connecter votre WhatsApp Business via Meta.
+                          Si vous n'avez pas de compte, il sera cree automatiquement.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bouton de connexion */}
                   {!whatsappConnected ? (
                     <button
                       onClick={handleWhatsAppConnect}
                       disabled={loading}
-                      className="w-full py-4 bg-gradient-to-r from-green-600 to-green-500 rounded-xl text-white font-semibold text-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                      className="w-full py-4 bg-gradient-to-r from-green-600 to-green-500 rounded-xl text-white font-semibold text-lg hover:shadow-lg hover:shadow-green-500/25 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
                     >
                       {loading ? (
                         <>
-                          <Loader className="w-5 h-5 animate-spin" />
+                          <Loader2 className="w-5 h-5 animate-spin" />
                           Connexion en cours...
                         </>
                       ) : (
@@ -495,39 +526,31 @@ export default function Onboarding() {
                       )}
                     </button>
                   ) : (
-                    <div className="glass p-6 rounded-xl border border-green-500/50 bg-green-500/10">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
-                          <Check className="w-6 h-6 text-white" />
+                    <div className="p-6 rounded-xl border border-green-500/50 bg-green-500/10">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center">
+                          <Check className="w-7 h-7 text-white" />
                         </div>
                         <div>
-                          <p className="text-white font-semibold">WhatsApp connecté avec succès!</p>
+                          <p className="text-white font-semibold text-lg">WhatsApp connecte!</p>
                           <p className="text-gray-300 text-sm">
-                            Votre compte WhatsApp Business est prêt à recevoir des messages.
+                            Votre assistant IA est pret a recevoir des messages.
                           </p>
                         </div>
                       </div>
                     </div>
                   )}
-
-                  {/* Info tarifs */}
-                  <div className="glass p-4 rounded-xl bg-accent/5 border border-accent/20">
-                    <p className="text-sm text-gray-300 text-center">
-                      <strong>Note:</strong> Vous pourrez configurer vos tarifs et offres spéciales
-                      directement dans le Menu Manager après l'inscription.
-                    </p>
-                  </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-8">
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-white/10">
             <button
               onClick={handlePrev}
               disabled={step === 1}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
               Retour
@@ -540,26 +563,30 @@ export default function Onboarding() {
                   (step === 1 && !formData.sector) ||
                   (step === 2 && !formData.nom_entreprise)
                 }
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary to-secondary text-white font-semibold hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Suivant
                 <ChevronRight className="w-5 h-5" />
               </button>
             ) : (
               <button
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
                 disabled={loading}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-accent to-primary text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all disabled:opacity-50 ${
+                  whatsappConnected
+                    ? 'bg-gradient-to-r from-green-600 to-green-500 text-white hover:shadow-lg hover:shadow-green-500/25'
+                    : 'bg-gradient-to-r from-primary to-secondary text-white hover:shadow-lg hover:shadow-primary/25'
+                }`}
               >
                 {loading ? (
                   <>
-                    <Loader className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Configuration...
                   </>
                 ) : (
                   <>
                     <Check className="w-5 h-5" />
-                    {whatsappConnected ? 'Terminer la configuration' : 'Configurer WhatsApp plus tard'}
+                    {whatsappConnected ? 'Terminer' : 'Continuer'}
                   </>
                 )}
               </button>
