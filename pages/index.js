@@ -16,8 +16,6 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    checkUser();
-
     // Détecter si mobile
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -28,32 +26,6 @@ export default function Home() {
 
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  const checkUser = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: client, error } = await supabase
-          .from('clients')
-          .select('profile_completed')
-          .eq('email', session.user.email)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Erreur checkUser:', error);
-          return;
-        }
-
-        if (client?.profile_completed) {
-          router.push('/dashboard');
-        } else {
-          router.push('/onboarding');
-        }
-      }
-    } catch (error) {
-      console.error('Erreur dans checkUser:', error);
-    }
-  };
 
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
