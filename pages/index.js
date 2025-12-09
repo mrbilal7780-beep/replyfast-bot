@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import dynamic from 'next/dynamic';
 
 // Import dynamique du background (client-side only)
-const ParticlesBackground = dynamic(() => import('../components/ParticlesBackground'), {
+const RobotBackground = dynamic(() => import('../components/RobotBackground'), {
   ssr: false,
 });
 
@@ -64,62 +64,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen overflow-hidden relative" style={{ backgroundColor: '#000000' }}>
-      {/* Fond avec vagues animées futuristes */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
-
-        {/* Vagues animées */}
-        <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="wave-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="rgba(99, 102, 241, 0.1)" />
-              <stop offset="50%" stopColor="rgba(139, 92, 246, 0.15)" />
-              <stop offset="100%" stopColor="rgba(99, 102, 241, 0.1)" />
-            </linearGradient>
-          </defs>
-
-          <motion.path
-            d="M0,100 Q250,50 500,100 T1000,100 T1500,100 T2000,100 V400 H0 Z"
-            fill="url(#wave-gradient)"
-            animate={{
-              d: [
-                "M0,100 Q250,50 500,100 T1000,100 T1500,100 T2000,100 V400 H0 Z",
-                "M0,120 Q250,70 500,120 T1000,120 T1500,120 T2000,120 V400 H0 Z",
-                "M0,100 Q250,50 500,100 T1000,100 T1500,100 T2000,100 V400 H0 Z"
-              ]
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-
-          <motion.path
-            d="M0,200 Q300,150 600,200 T1200,200 T1800,200 T2400,200 V600 H0 Z"
-            fill="rgba(139, 92, 246, 0.05)"
-            animate={{
-              d: [
-                "M0,200 Q300,150 600,200 T1200,200 T1800,200 T2400,200 V600 H0 Z",
-                "M0,180 Q300,130 600,180 T1200,180 T1800,180 T2400,180 V600 H0 Z",
-                "M0,200 Q300,150 600,200 T1200,200 T1800,200 T2400,200 V600 H0 Z"
-              ]
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1
-            }}
-          />
-        </svg>
-
-        {/* Grille subtile */}
-        <div className="absolute inset-0 opacity-30" style={{
-          backgroundImage: 'linear-gradient(rgba(99, 102, 241, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.02) 1px, transparent 1px)',
-          backgroundSize: '60px 60px'
-        }}></div>
-      </div>
+      {/* 🤖 Fond avec robot 3D animé */}
+      <RobotBackground />
 
       {/* Logo fixe en haut à gauche */}
       <motion.div
@@ -460,11 +406,6 @@ export default function Home() {
                     className="hover:text-accent transition-colors"
                   >
                     À propos
-                  </button>
-                </li>
-                <li>
-                  <button className="hover:text-accent transition-colors">
-                    Contact
                   </button>
                 </li>
               </ul>
