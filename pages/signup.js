@@ -175,12 +175,25 @@ export default function Signup() {
           }
         ]);
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        // Handle duplicate email error gracefully
+        if (insertError.code === '23505' || insertError.message?.includes('duplicate') || insertError.message?.includes('unique')) {
+          throw new Error('Cette adresse email est déjà utilisée. Essayez de vous connecter.');
+        }
+        throw insertError;
+      }
 
       // Rediriger vers la page de confirmation email
       router.push('/email-confirmation?email=' + encodeURIComponent(sanitizedEmail));
     } catch (err) {
-      setError(err.message);
+      // Format error messages for user
+      let errorMessage = err.message;
+      if (errorMessage.includes('duplicate') || errorMessage.includes('unique constraint')) {
+        errorMessage = 'Cette adresse email est déjà utilisée. Essayez de vous connecter.';
+      } else if (errorMessage.includes('User already registered')) {
+        errorMessage = 'Un compte existe déjà avec cet email. Essayez de vous connecter.';
+      }
+      setError(errorMessage);
       setLoading(false);
     }
   };
