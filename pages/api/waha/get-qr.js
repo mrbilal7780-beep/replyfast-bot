@@ -39,9 +39,9 @@ export default async function handler(req, res) {
       }
     }
 
-    // Recuperer le QR code
+    // Recuperer le QR code (endpoint correct: /api/{session}/auth/qr)
     const response = await fetch(
-      `${WAHA_URL}/api/sessions/${sessionName}/auth/qr`,
+      `${WAHA_URL}/api/${sessionName}/auth/qr`,
       { headers }
     );
 
