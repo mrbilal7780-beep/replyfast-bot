@@ -32,147 +32,42 @@ export default function FuturisticBackground() {
     rendererRef.current = renderer;
     containerRef.current.appendChild(renderer.domElement);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0x1a1a2e, 0.4);
+    // Enhanced Lighting - Much brighter
+    const ambientLight = new THREE.AmbientLight(0x4444ff, 0.6);
     scene.add(ambientLight);
 
-    const pointLight1 = new THREE.PointLight(0x6366f1, 3, 60);
+    const pointLight1 = new THREE.PointLight(0x6366f1, 5, 80);
     pointLight1.position.set(8, 8, 8);
     scene.add(pointLight1);
 
-    const pointLight2 = new THREE.PointLight(0x8b5cf6, 2.5, 60);
+    const pointLight2 = new THREE.PointLight(0x8b5cf6, 4, 80);
     pointLight2.position.set(-8, -5, 8);
     scene.add(pointLight2);
 
-    const pointLight3 = new THREE.PointLight(0x22d3ee, 2, 60);
+    const pointLight3 = new THREE.PointLight(0x22d3ee, 4, 80);
     pointLight3.position.set(0, 12, 0);
     scene.add(pointLight3);
 
-    // ===================
-    // LOGO TEXT "RF" - Simple geometric representation
-    // ===================
-    const logoGroup = new THREE.Group();
+    // Additional bright lights
+    const pointLight4 = new THREE.PointLight(0xff6b6b, 3, 60);
+    pointLight4.position.set(-10, 5, -5);
+    scene.add(pointLight4);
 
-    // Create "R" shape with boxes
-    const rMaterial = new THREE.MeshStandardMaterial({
-      color: 0x22d3ee,
-      metalness: 0.8,
-      roughness: 0.2,
-      emissive: 0x22d3ee,
-      emissiveIntensity: 0.3
-    });
-
-    // R - vertical bar
-    const rVertical = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 2.5, 0.3),
-      rMaterial
-    );
-    rVertical.position.set(-1.5, 0, 0);
-    logoGroup.add(rVertical);
-
-    // R - top horizontal
-    const rTop = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.3, 0.3),
-      rMaterial
-    );
-    rTop.position.set(-0.9, 1.1, 0);
-    logoGroup.add(rTop);
-
-    // R - middle horizontal
-    const rMiddle = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.3, 0.3),
-      rMaterial
-    );
-    rMiddle.position.set(-0.9, 0.1, 0);
-    logoGroup.add(rMiddle);
-
-    // R - curved part (simplified with boxes)
-    const rCurve = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 1.3, 0.3),
-      rMaterial
-    );
-    rCurve.position.set(-0.3, 0.6, 0);
-    logoGroup.add(rCurve);
-
-    // R - diagonal leg
-    const rLeg = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 1.5, 0.3),
-      rMaterial
-    );
-    rLeg.rotation.z = -0.6;
-    rLeg.position.set(-0.5, -0.8, 0);
-    logoGroup.add(rLeg);
-
-    // Create "F" shape
-    const fMaterial = new THREE.MeshStandardMaterial({
-      color: 0x6366f1,
-      metalness: 0.8,
-      roughness: 0.2,
-      emissive: 0x6366f1,
-      emissiveIntensity: 0.3
-    });
-
-    // F - vertical bar
-    const fVertical = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 2.5, 0.3),
-      fMaterial
-    );
-    fVertical.position.set(0.8, 0, 0);
-    logoGroup.add(fVertical);
-
-    // F - top horizontal
-    const fTop = new THREE.Mesh(
-      new THREE.BoxGeometry(1.3, 0.3, 0.3),
-      fMaterial
-    );
-    fTop.position.set(1.45, 1.1, 0);
-    logoGroup.add(fTop);
-
-    // F - middle horizontal
-    const fMiddleBar = new THREE.Mesh(
-      new THREE.BoxGeometry(1, 0.3, 0.3),
-      fMaterial
-    );
-    fMiddleBar.position.set(1.3, 0.1, 0);
-    logoGroup.add(fMiddleBar);
-
-    // Position logo to the right side
-    logoGroup.position.set(4, 0, -2);
-    logoGroup.rotation.y = -0.2;
-    scene.add(logoGroup);
-
-    // Glowing rings around logo
-    const rings = [];
-    const ringConfigs = [
-      { radius: 2.5, color: 0x6366f1, speed: 0.005 },
-      { radius: 3, color: 0x22d3ee, speed: -0.003 },
-      { radius: 3.5, color: 0x8b5cf6, speed: 0.004 }
-    ];
-
-    ringConfigs.forEach((config) => {
-      const ringGeometry = new THREE.TorusGeometry(config.radius, 0.02, 16, 100);
-      const ringMaterial = new THREE.MeshBasicMaterial({
-        color: config.color,
-        transparent: true,
-        opacity: 0.4
-      });
-      const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-      ring.position.set(4, 0, -2);
-      ring.userData = config;
-      scene.add(ring);
-      rings.push(ring);
-    });
+    const pointLight5 = new THREE.PointLight(0x4ecdc4, 3, 60);
+    pointLight5.position.set(10, -5, -5);
+    scene.add(pointLight5);
 
     // ===================
-    // BOUNCING PARTICLES SYSTEM
+    // BRIGHT BOUNCING PARTICLES - More particles, more brightness
     // ===================
-    const particlesCount = 3000;
+    const particlesCount = 5000;
     const particlesGeometry = new THREE.BufferGeometry();
     const posArray = new Float32Array(particlesCount * 3);
     const velocityArray = new Float32Array(particlesCount * 3);
     const colorsArray = new Float32Array(particlesCount * 3);
+    const sizesArray = new Float32Array(particlesCount);
 
-    const bounds = { x: 18, y: 14, z: 18 };
+    const bounds = { x: 20, y: 16, z: 20 };
 
     for (let i = 0; i < particlesCount; i++) {
       const i3 = i * 3;
@@ -181,30 +76,44 @@ export default function FuturisticBackground() {
       posArray[i3 + 1] = (Math.random() - 0.5) * bounds.y * 2;
       posArray[i3 + 2] = (Math.random() - 0.5) * bounds.z * 2;
 
-      velocityArray[i3] = (Math.random() - 0.5) * 0.04;
-      velocityArray[i3 + 1] = (Math.random() - 0.5) * 0.04;
-      velocityArray[i3 + 2] = (Math.random() - 0.5) * 0.04;
+      velocityArray[i3] = (Math.random() - 0.5) * 0.05;
+      velocityArray[i3 + 1] = (Math.random() - 0.5) * 0.05;
+      velocityArray[i3 + 2] = (Math.random() - 0.5) * 0.05;
 
+      // Brighter color palette
       const colorChoice = Math.random();
-      if (colorChoice < 0.35) {
-        colorsArray[i3] = 0.13; colorsArray[i3 + 1] = 0.83; colorsArray[i3 + 2] = 0.93;
+      if (colorChoice < 0.25) {
+        // Bright cyan
+        colorsArray[i3] = 0.13; colorsArray[i3 + 1] = 0.93; colorsArray[i3 + 2] = 1.0;
+      } else if (colorChoice < 0.45) {
+        // Electric blue
+        colorsArray[i3] = 0.39; colorsArray[i3 + 1] = 0.5; colorsArray[i3 + 2] = 1.0;
       } else if (colorChoice < 0.6) {
-        colorsArray[i3] = 0.39; colorsArray[i3 + 1] = 0.4; colorsArray[i3 + 2] = 0.95;
-      } else if (colorChoice < 0.8) {
-        colorsArray[i3] = 0.55; colorsArray[i3 + 1] = 0.36; colorsArray[i3 + 2] = 0.97;
+        // Bright purple
+        colorsArray[i3] = 0.7; colorsArray[i3 + 1] = 0.4; colorsArray[i3 + 2] = 1.0;
+      } else if (colorChoice < 0.75) {
+        // Pure white (very bright)
+        colorsArray[i3] = 1.0; colorsArray[i3 + 1] = 1.0; colorsArray[i3 + 2] = 1.0;
+      } else if (colorChoice < 0.85) {
+        // Hot pink
+        colorsArray[i3] = 1.0; colorsArray[i3 + 1] = 0.4; colorsArray[i3 + 2] = 0.8;
       } else {
-        colorsArray[i3] = 1; colorsArray[i3 + 1] = 1; colorsArray[i3 + 2] = 1;
+        // Bright gold
+        colorsArray[i3] = 1.0; colorsArray[i3 + 1] = 0.85; colorsArray[i3 + 2] = 0.3;
       }
+
+      // Variable sizes for depth effect
+      sizesArray[i] = Math.random() * 0.08 + 0.04;
     }
 
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
 
     const particlesMaterial = new THREE.PointsMaterial({
-      size: 0.07,
+      size: 0.1,
       vertexColors: true,
       transparent: true,
-      opacity: 0.9,
+      opacity: 1.0,
       blending: THREE.AdditiveBlending,
       sizeAttenuation: true
     });
@@ -213,50 +122,93 @@ export default function FuturisticBackground() {
     scene.add(particlesMesh);
 
     // ===================
-    // FLOATING ORBS
+    // GLOWING ORBS - Brighter and more
     // ===================
-    const orbCount = 60;
+    const orbCount = 100;
     const orbs = [];
-    const orbGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+    const orbGeometry = new THREE.SphereGeometry(0.15, 16, 16);
 
     for (let i = 0; i < orbCount; i++) {
+      const colorOptions = [0x6366f1, 0x22d3ee, 0x8b5cf6, 0xff6b6b, 0x4ecdc4, 0xffd93d];
       const orbMaterial = new THREE.MeshBasicMaterial({
-        color: Math.random() > 0.5 ? 0x6366f1 : 0x22d3ee,
+        color: colorOptions[Math.floor(Math.random() * colorOptions.length)],
         transparent: true,
-        opacity: 0.7
+        opacity: 0.9
       });
       const orb = new THREE.Mesh(orbGeometry, orbMaterial);
       orb.position.set(
-        (Math.random() - 0.5) * 30,
-        (Math.random() - 0.5) * 24,
-        (Math.random() - 0.5) * 24
+        (Math.random() - 0.5) * 35,
+        (Math.random() - 0.5) * 28,
+        (Math.random() - 0.5) * 28
       );
       orb.userData = {
         velocity: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.03,
-          (Math.random() - 0.5) * 0.03,
-          (Math.random() - 0.5) * 0.03
+          (Math.random() - 0.5) * 0.04,
+          (Math.random() - 0.5) * 0.04,
+          (Math.random() - 0.5) * 0.04
         ),
-        originalOpacity: 0.5 + Math.random() * 0.4
+        originalOpacity: 0.6 + Math.random() * 0.4,
+        pulseSpeed: 1 + Math.random() * 2
       };
       scene.add(orb);
       orbs.push(orb);
     }
 
     // ===================
-    // GRID FLOOR
+    // BRIGHT STREAKS / LIGHT TRAILS
     // ===================
-    const gridHelper = new THREE.GridHelper(50, 70, 0x6366f1, 0x1a1a2e);
-    gridHelper.position.y = -5;
+    const streakCount = 30;
+    const streaks = [];
+
+    for (let i = 0; i < streakCount; i++) {
+      const streakGeometry = new THREE.BufferGeometry();
+      const streakPoints = [];
+      const trailLength = 15;
+      const startX = (Math.random() - 0.5) * 30;
+      const startY = (Math.random() - 0.5) * 20;
+      const startZ = (Math.random() - 0.5) * 20;
+
+      for (let j = 0; j < trailLength; j++) {
+        streakPoints.push(startX, startY, startZ - j * 0.3);
+      }
+
+      streakGeometry.setAttribute('position', new THREE.Float32BufferAttribute(streakPoints, 3));
+
+      const streakColors = [0x22d3ee, 0x6366f1, 0x8b5cf6, 0xffffff];
+      const streakMaterial = new THREE.LineBasicMaterial({
+        color: streakColors[Math.floor(Math.random() * streakColors.length)],
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending
+      });
+
+      const streak = new THREE.Line(streakGeometry, streakMaterial);
+      streak.userData = {
+        velocity: new THREE.Vector3(
+          (Math.random() - 0.5) * 0.08,
+          (Math.random() - 0.5) * 0.08,
+          Math.random() * 0.1 + 0.05
+        ),
+        trailLength
+      };
+      scene.add(streak);
+      streaks.push(streak);
+    }
+
+    // ===================
+    // GRID FLOOR - Subtle
+    // ===================
+    const gridHelper = new THREE.GridHelper(60, 80, 0x6366f1, 0x1a1a2e);
+    gridHelper.position.y = -6;
     gridHelper.material.transparent = true;
-    gridHelper.material.opacity = 0.2;
+    gridHelper.material.opacity = 0.15;
     scene.add(gridHelper);
 
     // ===================
-    // CONNECTING LINES
+    // CONNECTING LINES - More visible
     // ===================
     const lineGeometry = new THREE.BufferGeometry();
-    const maxConnections = 600;
+    const maxConnections = 800;
     const linePositions = new Float32Array(maxConnections * 6);
     lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
     lineGeometry.setDrawRange(0, 0);
@@ -264,7 +216,7 @@ export default function FuturisticBackground() {
     const lineMaterial = new THREE.LineBasicMaterial({
       color: 0x6366f1,
       transparent: true,
-      opacity: 0.12,
+      opacity: 0.2,
       blending: THREE.AdditiveBlending
     });
 
@@ -328,8 +280,8 @@ export default function FuturisticBackground() {
           const dx = positions[i3] - mouseWorldPos.x;
           const dy = positions[i3 + 1] - mouseWorldPos.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 4) {
-            const force = (4 - dist) / 4 * 0.025;
+          if (dist < 5) {
+            const force = (5 - dist) / 5 * 0.03;
             velocityArray[i3] += (dx / dist) * force;
             velocityArray[i3 + 1] += (dy / dist) * force;
           }
@@ -343,23 +295,40 @@ export default function FuturisticBackground() {
 
       particlesGeometry.attributes.position.needsUpdate = true;
 
-      // Update orbs
+      // Update orbs with pulsing effect
       orbs.forEach((orb) => {
         orb.position.add(orb.userData.velocity);
-        if (Math.abs(orb.position.x) > 15) orb.userData.velocity.x *= -1;
-        if (Math.abs(orb.position.y) > 12) orb.userData.velocity.y *= -1;
-        if (Math.abs(orb.position.z) > 12) orb.userData.velocity.z *= -1;
-        orb.material.opacity = orb.userData.originalOpacity + Math.sin(time * 2 + orb.position.x) * 0.2;
+        if (Math.abs(orb.position.x) > 18) orb.userData.velocity.x *= -1;
+        if (Math.abs(orb.position.y) > 14) orb.userData.velocity.y *= -1;
+        if (Math.abs(orb.position.z) > 14) orb.userData.velocity.z *= -1;
+        // Pulsing glow effect
+        orb.material.opacity = orb.userData.originalOpacity + Math.sin(time * orb.userData.pulseSpeed) * 0.3;
+        orb.scale.setScalar(1 + Math.sin(time * orb.userData.pulseSpeed * 0.5) * 0.2);
+      });
+
+      // Update streaks
+      streaks.forEach((streak) => {
+        streak.position.add(streak.userData.velocity);
+        // Reset position when out of bounds
+        if (streak.position.z > 20) {
+          streak.position.z = -20;
+          streak.position.x = (Math.random() - 0.5) * 30;
+          streak.position.y = (Math.random() - 0.5) * 20;
+        }
+        if (Math.abs(streak.position.x) > 18 || Math.abs(streak.position.y) > 12) {
+          streak.position.x = (Math.random() - 0.5) * 30;
+          streak.position.y = (Math.random() - 0.5) * 20;
+        }
       });
 
       // Update lines
       let lineIndex = 0;
       const linePos = lines.geometry.attributes.position.array;
-      const connectionDistance = 2.5;
+      const connectionDistance = 3;
 
-      for (let i = 0; i < Math.min(250, particlesCount) && lineIndex < maxConnections * 6; i++) {
+      for (let i = 0; i < Math.min(300, particlesCount) && lineIndex < maxConnections * 6; i++) {
         const i3 = i * 3;
-        for (let j = i + 1; j < Math.min(250, particlesCount) && lineIndex < maxConnections * 6; j++) {
+        for (let j = i + 1; j < Math.min(300, particlesCount) && lineIndex < maxConnections * 6; j++) {
           const j3 = j * 3;
           const dx = positions[i3] - positions[j3];
           const dy = positions[i3 + 1] - positions[j3 + 1];
@@ -380,25 +349,18 @@ export default function FuturisticBackground() {
       lines.geometry.attributes.position.needsUpdate = true;
       lines.geometry.setDrawRange(0, lineIndex / 3);
 
-      // Animate logo
-      logoGroup.rotation.y = -0.2 + Math.sin(time * 0.3) * 0.1;
-      logoGroup.position.y = Math.sin(time * 0.5) * 0.3;
-
-      // Animate rings
-      rings.forEach((ring, i) => {
-        ring.rotation.x = Math.sin(time * 0.5 + i) * 0.5;
-        ring.rotation.y += ring.userData.speed;
-        ring.rotation.z = Math.cos(time * 0.3 + i) * 0.3;
-      });
-
-      // Camera
-      camera.position.x += (mouseX * 1.5 - camera.position.x) * 0.02;
-      camera.position.y += (mouseY * 0.8 - camera.position.y) * 0.02;
+      // Camera movement
+      camera.position.x += (mouseX * 2 - camera.position.x) * 0.02;
+      camera.position.y += (mouseY * 1 - camera.position.y) * 0.02;
       camera.lookAt(0, 0, 0);
 
-      // Lights
-      pointLight1.position.x = 8 + Math.sin(time) * 3;
-      pointLight2.position.y = -5 + Math.sin(time * 0.5) * 3;
+      // Animate lights for dynamic feel
+      pointLight1.position.x = 8 + Math.sin(time) * 4;
+      pointLight1.position.y = 8 + Math.cos(time * 0.7) * 3;
+      pointLight2.position.y = -5 + Math.sin(time * 0.5) * 4;
+      pointLight3.position.x = Math.sin(time * 0.3) * 8;
+      pointLight4.position.z = -5 + Math.sin(time * 0.4) * 5;
+      pointLight5.position.y = -5 + Math.cos(time * 0.6) * 5;
 
       renderer.render(scene, camera);
     };

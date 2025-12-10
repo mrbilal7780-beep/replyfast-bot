@@ -18,8 +18,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    checkUser();
-
+    // Ne pas rediriger automatiquement - laisser l'utilisateur voir la landing page
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };

@@ -466,7 +466,17 @@ export default function Onboarding() {
                   {wahaStatus === 'starting' && (
                     <div className="text-center py-8">
                       <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
-                      <p className="text-gray-400">Generation du QR code...</p>
+                      <p className="text-white font-medium mb-2">Demarrage de WhatsApp...</p>
+                      <p className="text-gray-400 text-sm">Cela peut prendre jusqu'a 1 minute</p>
+                      <div className="mt-4 flex justify-center gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <div
+                            key={i}
+                            className="w-2 h-2 rounded-full bg-primary animate-pulse"
+                            style={{ animationDelay: `${i * 0.3}s` }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
 
