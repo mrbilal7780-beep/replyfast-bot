@@ -1,0 +1,18 @@
+# WAHA - WhatsApp HTTP API
+# https://github.com/devlikeapro/waha
+
+FROM devlikeapro/waha:latest
+
+# Configuration par defaut
+ENV WHATSAPP_HOOK_URL=""
+ENV WHATSAPP_HOOK_EVENTS="message,session.status"
+ENV WHATSAPP_DEFAULT_ENGINE="WEBJS"
+ENV WAHA_PRINT_QR=true
+ENV WAHA_LOG_LEVEL=info
+
+# Port expose
+EXPOSE 3000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
