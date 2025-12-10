@@ -97,6 +97,13 @@ export default function Onboarding() {
 
       const startData = await startRes.json();
 
+      // Handle errors from API
+      if (!startRes.ok) {
+        setWahaError(startData.details || startData.error || 'Erreur de connexion WAHA');
+        setWahaStatus('error');
+        return;
+      }
+
       if (startData.status === 'WORKING') {
         setWahaStatus('connected');
         setWhatsappConnected(true);
@@ -107,7 +114,7 @@ export default function Onboarding() {
 
     } catch (error) {
       console.error('WAHA start error:', error);
-      setWahaError('Erreur de connexion au serveur WAHA');
+      setWahaError('Serveur WAHA non disponible. Configurez WAHA_URL dans vos variables d\'environnement.');
       setWahaStatus('error');
     }
   };
@@ -116,6 +123,16 @@ export default function Onboarding() {
     try {
       const qrRes = await fetch('/api/waha/get-qr?sessionName=default');
       const qrData = await qrRes.json();
+
+      if (!qrRes.ok) {
+        if (qrRes.status === 503) {
+          setWahaError('Serveur WAHA non disponible');
+        } else {
+          setWahaError(qrData.message || qrData.error || 'Erreur QR code');
+        }
+        setWahaStatus('error');
+        return;
+      }
 
       if (qrData.qr) {
         setQrCode(qrData.qr);
@@ -126,7 +143,7 @@ export default function Onboarding() {
       }
     } catch (error) {
       console.error('QR fetch error:', error);
-      setWahaError('Impossible de recuperer le QR code');
+      setWahaError('Impossible de recuperer le QR code. Verifiez la connexion WAHA.');
       setWahaStatus('error');
     }
   };

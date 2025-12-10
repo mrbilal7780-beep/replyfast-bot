@@ -85,6 +85,16 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('WAHA start-session error:', error);
+
+    // Check if WAHA server is not reachable
+    if (error.cause?.code === 'ECONNREFUSED' || error.message?.includes('fetch failed')) {
+      return res.status(503).json({
+        error: 'Serveur WAHA non disponible',
+        details: 'Verifiez que votre serveur WAHA est demarre et accessible.',
+        help: 'Variable WAHA_URL actuelle: ' + (process.env.WAHA_URL || 'http://localhost:3001 (defaut)')
+      });
+    }
+
     return res.status(500).json({
       error: 'Erreur de connexion WAHA',
       details: error.message
