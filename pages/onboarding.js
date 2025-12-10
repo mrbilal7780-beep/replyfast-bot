@@ -60,12 +60,20 @@ export default function Onboarding() {
         setUser(session.user);
         const { data: client } = await supabase
           .from('clients')
-          .select('profile_completed')
+          .select('profile_completed, first_name, last_name, email')
           .eq('email', session.user.email)
           .maybeSingle();
 
         if (client?.profile_completed) {
           router.push('/dashboard');
+        } else if (client) {
+          // Pre-fill form with user data
+          const fullName = [client.first_name, client.last_name].filter(Boolean).join(' ');
+          setFormData(prev => ({
+            ...prev,
+            email_contact: client.email || session.user.email || '',
+            nom_entreprise: fullName ? `Entreprise ${fullName}` : ''
+          }));
         }
       }
     } catch (error) {

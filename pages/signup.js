@@ -346,7 +346,16 @@ export default function Signup() {
                 </div>
               </div>
               {emailError && (
-                <p className="text-red-400 text-sm mt-1">{emailError}</p>
+                <div className="mt-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <p className="text-red-400 text-sm font-medium">{emailError}</p>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/login')}
+                    className="text-primary text-sm mt-1 hover:underline"
+                  >
+                    Se connecter a la place
+                  </button>
+                </div>
               )}
             </div>
 
