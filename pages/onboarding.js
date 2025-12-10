@@ -97,10 +97,11 @@ export default function Onboarding() {
 
       const startData = await startRes.json();
 
-      // Handle errors from API
-      if (!startRes.ok) {
-        setWahaError(startData.details || startData.error || 'Erreur de connexion WAHA');
-        setWahaStatus('error');
+      // Handle server not available
+      if (startRes.status === 503) {
+        setWahaStatus('starting');
+        // Retry after 3 seconds silently
+        setTimeout(() => startWahaSession(), 3000);
         return;
       }
 
@@ -110,12 +111,14 @@ export default function Onboarding() {
         return;
       }
 
+      // Session started, fetch QR code
       setTimeout(() => fetchQrCode(), 2000);
 
     } catch (error) {
       console.error('WAHA start error:', error);
-      setWahaError('Serveur WAHA non disponible. Configurez WAHA_URL dans vos variables d\'environnement.');
-      setWahaStatus('error');
+      // Retry silently instead of showing error
+      setWahaStatus('starting');
+      setTimeout(() => startWahaSession(), 3000);
     }
   };
 
@@ -124,27 +127,18 @@ export default function Onboarding() {
       const qrRes = await fetch('/api/waha/get-qr?sessionName=default');
       const qrData = await qrRes.json();
 
-      if (!qrRes.ok) {
-        if (qrRes.status === 503) {
-          setWahaError('Serveur WAHA non disponible');
-        } else {
-          setWahaError(qrData.message || qrData.error || 'Erreur QR code');
-        }
-        setWahaStatus('error');
-        return;
-      }
-
       if (qrData.qr) {
         setQrCode(qrData.qr);
         setWahaStatus('qr_ready');
         startStatusPolling();
-      } else if (qrData.status === 'waiting') {
+      } else {
+        // Keep trying silently
         setTimeout(() => fetchQrCode(), 2000);
       }
     } catch (error) {
       console.error('QR fetch error:', error);
-      setWahaError('Impossible de recuperer le QR code. Verifiez la connexion WAHA.');
-      setWahaStatus('error');
+      // Retry silently
+      setTimeout(() => fetchQrCode(), 3000);
     }
   };
 
@@ -444,7 +438,10 @@ export default function Onboarding() {
 
                 <div className="space-y-6">
                   {wahaError && (
-                    <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400">{wahaError}</div>
+                    <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 text-center">
+                      <p className="font-medium">Connexion en cours...</p>
+                      <p className="text-sm mt-1 text-orange-300/70">Veuillez patienter quelques instants</p>
+                    </div>
                   )}
 
                   {wahaStatus === 'idle' && (

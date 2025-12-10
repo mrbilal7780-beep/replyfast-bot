@@ -71,8 +71,8 @@ export default async function handler(req, res) {
       headers: WAHA_API_KEY ? { 'X-Api-Key': WAHA_API_KEY } : {}
     });
 
-    if (!startResponse.ok && startResponse.status !== 409) {
-      // 409 = deja demarree, c'est ok
+    // 409 ou 422 = session deja demarree, c'est ok
+    if (!startResponse.ok && startResponse.status !== 409 && startResponse.status !== 422) {
       const error = await startResponse.text();
       console.error('Erreur demarrage session:', error);
     }
