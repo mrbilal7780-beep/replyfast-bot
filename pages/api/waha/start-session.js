@@ -10,19 +10,18 @@ export default async function handler(req, res) {
 
   const WAHA_URL = process.env.WAHA_URL || 'http://localhost:3001';
   const WAHA_API_KEY = process.env.WAHA_API_KEY;
+  const headers = WAHA_API_KEY ? { 'X-Api-Key': WAHA_API_KEY } : {};
 
   try {
     const { sessionName = 'default' } = req.body;
 
-    // Verifier si la session existe deja
-    const checkResponse = await fetch(`${WAHA_URL}/api/sessions/${sessionName}`, {
-      headers: WAHA_API_KEY ? { 'X-Api-Key': WAHA_API_KEY } : {}
-    });
+    // 1. Verifier le statut actuel de la session
+    const checkResponse = await fetch(`${WAHA_URL}/api/sessions/${sessionName}`, { headers });
 
     if (checkResponse.ok) {
       const sessionData = await checkResponse.json();
 
-      // Si deja connecte, retourner le statut
+      // Si deja connecte (WORKING), retourner
       if (sessionData.status === 'WORKING') {
         return res.status(200).json({
           success: true,
@@ -31,67 +30,66 @@ export default async function handler(req, res) {
         });
       }
 
-      // Si existe mais pas connecte, restart
-      if (sessionData.status === 'STOPPED' || sessionData.status === 'FAILED') {
-        await fetch(`${WAHA_URL}/api/sessions/${sessionName}/restart`, {
-          method: 'POST',
-          headers: WAHA_API_KEY ? { 'X-Api-Key': WAHA_API_KEY } : {}
+      // Si en attente de QR (SCAN_QR_CODE), c'est bon
+      if (sessionData.status === 'SCAN_QR_CODE') {
+        return res.status(200).json({
+          success: true,
+          status: 'SCAN_QR_CODE',
+          message: 'QR code disponible'
         });
       }
-    } else {
-      // Creer nouvelle session
-      const createResponse = await fetch(`${WAHA_URL}/api/sessions`, {
+
+      // Sinon, stopper puis redemarrer proprement
+      await fetch(`${WAHA_URL}/api/sessions/${sessionName}/stop`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(WAHA_API_KEY ? { 'X-Api-Key': WAHA_API_KEY } : {})
-        },
-        body: JSON.stringify({
-          name: sessionName,
-          config: {
-            webhooks: [
-              {
-                url: `${process.env.NEXT_PUBLIC_APP_URL || ''}/api/waha/webhook`,
-                events: ['message', 'session.status']
-              }
-            ]
-          }
-        })
+        headers
       });
 
-      if (!createResponse.ok) {
-        const error = await createResponse.text();
-        throw new Error(`Erreur creation session: ${error}`);
-      }
+      // Attendre un peu
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    // Demarrer la session
-    const startResponse = await fetch(`${WAHA_URL}/api/sessions/${sessionName}/start`, {
+    // 2. Creer ou demarrer la session
+    const createResponse = await fetch(`${WAHA_URL}/api/sessions`, {
       method: 'POST',
-      headers: WAHA_API_KEY ? { 'X-Api-Key': WAHA_API_KEY } : {}
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers
+      },
+      body: JSON.stringify({
+        name: sessionName,
+        start: true,
+        config: {
+          webhooks: [
+            {
+              url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://replyfast-bot.onrender.com'}/api/waha/webhook`,
+              events: ['message', 'session.status']
+            }
+          ]
+        }
+      })
     });
 
-    // 409 ou 422 = session deja demarree, c'est ok
-    if (!startResponse.ok && startResponse.status !== 409 && startResponse.status !== 422) {
-      const error = await startResponse.text();
-      console.error('Erreur demarrage session:', error);
+    // Si la session existe deja, la demarrer
+    if (createResponse.status === 422 || createResponse.status === 409) {
+      await fetch(`${WAHA_URL}/api/sessions/${sessionName}/start`, {
+        method: 'POST',
+        headers
+      });
     }
 
     return res.status(200).json({
       success: true,
       sessionName,
-      message: 'Session demarree, QR code disponible'
+      message: 'Session demarree, attendez le QR code'
     });
 
   } catch (error) {
     console.error('WAHA start-session error:', error);
 
-    // Check if WAHA server is not reachable
     if (error.cause?.code === 'ECONNREFUSED' || error.message?.includes('fetch failed')) {
       return res.status(503).json({
-        error: 'Serveur WAHA non disponible',
-        details: 'Verifiez que votre serveur WAHA est demarre et accessible.',
-        help: 'Variable WAHA_URL actuelle: ' + (process.env.WAHA_URL || 'http://localhost:3001 (defaut)')
+        error: 'Serveur WAHA non disponible'
       });
     }
 

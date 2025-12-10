@@ -127,17 +127,24 @@ export default function Onboarding() {
       const qrRes = await fetch('/api/waha/get-qr?sessionName=default');
       const qrData = await qrRes.json();
 
+      // Si deja connecte
+      if (qrData.status === 'connected') {
+        setWahaStatus('connected');
+        setWhatsappConnected(true);
+        return;
+      }
+
+      // Si QR code disponible
       if (qrData.qr) {
         setQrCode(qrData.qr);
         setWahaStatus('qr_ready');
         startStatusPolling();
       } else {
-        // Keep trying silently
-        setTimeout(() => fetchQrCode(), 2000);
+        // Continuer d'essayer silencieusement
+        setTimeout(() => fetchQrCode(), 3000);
       }
     } catch (error) {
       console.error('QR fetch error:', error);
-      // Retry silently
       setTimeout(() => fetchQrCode(), 3000);
     }
   };
